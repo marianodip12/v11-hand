@@ -1,0 +1,105 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /*
+     * Handball Pro v11 — Design tokens
+     *
+     * Philosophy: OLED-friendly deep navy, high contrast for outdoor use.
+     * All colors in HSL (no alpha here — Tailwind appends it via / <alpha>).
+     */
+
+    /* Surfaces */
+    --bg: 222 47% 7%;            /* #0A0F1C — page bg */
+    --surface: 220 37% 12%;      /* #131B2E — cards */
+    --surface-2: 222 38% 18%;    /* #1C2742 — elevated */
+    --border: 223 32% 22%;       /* #273349 — subtle borders */
+
+    /* Text */
+    --fg: 210 40% 95%;           /* #F1F5F9 — primary text */
+    --muted: 217 19% 58%;        /* #7A8599 — muted bg usage */
+    --muted-fg: 215 20% 65%;     /* #94A3B8 — secondary text */
+
+    /* Brand */
+    --primary: 217 91% 60%;      /* #3B82F6 — kept from v8 */
+    --primary-fg: 210 40% 98%;
+
+    /* Semantic — handball event types */
+    --goal: 160 84% 39%;         /* #10B981 — gol */
+    --save: 213 94% 68%;         /* #60A5FA — atajada */
+    --miss: 215 20% 65%;         /* #94A3B8 — errado */
+    --danger: 0 84% 60%;         /* #EF4444 — rojo crítico / tarjeta roja */
+    --warning: 38 92% 50%;       /* #F59E0B — warning / amarilla */
+    --exclusion: 24 95% 53%;     /* #F97316 — exclusión 2min */
+    --card: 258 90% 66%;         /* #8B5CF6 — tarjetas disciplina */
+
+    /* Layout */
+    --radius: 0.75rem;
+
+    color-scheme: dark;
+  }
+
+  * {
+    @apply border-border;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-bg text-fg font-sans antialiased;
+    font-feature-settings: 'cv11', 'ss01', 'ss03';
+  }
+
+  /* Tabular nums on anything that should not "wobble" */
+  .tabular,
+  .font-mono {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Headings */
+  h1 { @apply text-2xl font-semibold tracking-tight; }
+  h2 { @apply text-xl font-semibold tracking-tight; }
+  h3 { @apply text-lg font-medium; }
+
+  /* Scrollbar — subtle */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--surface-2));
+  }
+
+  /* Respect reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* Touch target minimum: 44×44 CSS px for anything interactive on mobile */
+  .touch-target {
+    @apply min-h-[44px] min-w-[44px];
+  }
+
+  /* Reusable data chip */
+  .chip {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full
+           text-xs font-medium border border-border bg-surface-2/60;
+  }
+}
