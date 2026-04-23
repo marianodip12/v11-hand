@@ -145,6 +145,47 @@ export const LiveMatchPage = () => {
 
   const handleShotOutcomePicked = (outcome: ShotOutcome) => {
     if (!pendingShot) return;
+    const { draft: d } = pendingShot;
+    const teamObj = teams.find(
+      (t) => t.name === (d.team === 'home' ? match.home : match.away),
+    );
+    const hasRoster = (teamObj?.players.length ?? 0) > 0;
+    // If the attacking team has no roster (typical for rival), skip the
+    // picker entirely and ask only for a jersey number via a light prompt.
+    if (!hasRoster) {
+      const adhoc = adhocPlayersFor(events, d.team);
+      const quickPrompt = window.prompt(
+        `Número del tirador (${d.team === 'home' ? match.home : match.away})` +
+          (adhoc.length > 0 ? `\nYa usados: ${adhoc.map((p) => '#' + p.number).join(', ')}` : ''),
+        '',
+      );
+      if (quickPrompt === null) {
+        setPendingShot(null);
+        setDraft({ ...EMPTY_DRAFT, team: attacker });
+        return;
+      }
+      const trimmed = quickPrompt.trim();
+      let shooter: PersonRef | null = null;
+      if (trimmed !== '') {
+        const n = Number(trimmed);
+        if (Number.isFinite(n) && n >= 1 && n <= 99) {
+          const reused = adhoc.find((p) => p.number === n);
+          shooter = reused ?? { name: `#${n}`, number: n };
+        }
+      }
+      // Same GK logic as below, but we skip shooter dialog
+      const reachedGoal = outcome === 'goal' || outcome === 'saved';
+      const gkIsOurs = d.team === 'away';
+      const needsGKStep = reachedGoal && gkIsOurs;
+      if (!needsGKStep) {
+        addEvent(buildEvent({ type: outcome, draft: { ...d, shooter }, clock, quickMode: false }));
+        setPendingShot(null);
+        setDraft({ ...EMPTY_DRAFT, team: attacker });
+        return;
+      }
+      setPendingShot({ ...pendingShot, step: 'goalkeeper', outcome, shooterPicked: shooter });
+      return;
+    }
     setPendingShot({ ...pendingShot, step: 'shooter', outcome });
   };
 
@@ -153,12 +194,7 @@ export const LiveMatchPage = () => {
     const { draft: d, outcome } = pendingShot;
 
     const reachedGoal = outcome === 'goal' || outcome === 'saved';
-    // We only know OUR roster — so we only ask for the GK when it's ours.
-    // i.e. when the rival attacked us.
-    const gkIsOurs = d.team === 'away';
-    const needsGKStep = reachedGoal && gkIsOurs;
-
-    if (!needsGKStep) {
+    if (!reachedGoal) {
       addEvent(buildEvent({
         type: outcome,
         draft: { ...d, shooter },
@@ -169,6 +205,45 @@ export const LiveMatchPage = () => {
       setDraft({ ...EMPTY_DRAFT, team: attacker });
       return;
     }
+
+    // Ask for GK. Which roster depends on who attacked:
+    //  - rival attacked (d.team === 'away') → our GK (home roster)
+    //  - we attacked (d.team === 'home') → rival GK
+    const gkIsOurs = d.team === 'away';
+    const gkTeamName = gkIsOurs ? match.home : match.away;
+    const gkTeamObj = teams.find((t) => t.name === gkTeamName);
+    const gkHasRoster = (gkTeamObj?.players.length ?? 0) > 0;
+
+    // If the GK's team has no roster loaded, ask via prompt instead.
+    if (!gkHasRoster) {
+      const adhoc = adhocPlayersFor(events, gkIsOurs ? 'home' : 'away');
+      const quickPrompt = window.prompt(
+        `Número del arquero (${gkTeamName})` +
+          (adhoc.length > 0 ? `\nYa usados: ${adhoc.map((p) => '#' + p.number).join(', ')}` : ''),
+        '',
+      );
+      let gk: PersonRef | null = null;
+      if (quickPrompt !== null) {
+        const trimmed = quickPrompt.trim();
+        if (trimmed !== '') {
+          const n = Number(trimmed);
+          if (Number.isFinite(n) && n >= 1 && n <= 99) {
+            const reused = adhoc.find((p) => p.number === n);
+            gk = reused ?? { name: `#${n}`, number: n };
+          }
+        }
+      }
+      addEvent(buildEvent({
+        type: outcome,
+        draft: { ...d, shooter, goalkeeper: gk },
+        clock,
+        quickMode: false,
+      }));
+      setPendingShot(null);
+      setDraft({ ...EMPTY_DRAFT, team: attacker });
+      return;
+    }
+
     setPendingShot({ ...pendingShot, step: 'goalkeeper', shooterPicked: shooter });
   };
 
@@ -242,16 +317,20 @@ export const LiveMatchPage = () => {
     }
 
     if (pendingShot && pendingShot.step === 'goalkeeper') {
-      const teamObj = teams.find((t) => t.name === match.home);
+      const { draft: d } = pendingShot;
+      const gkIsOurs = d.team === 'away';
+      const gkTeamName = gkIsOurs ? match.home : match.away;
+      const gkColor = gkIsOurs ? match.homeColor : match.awayColor;
+      const teamObj = teams.find((t) => t.name === gkTeamName);
       const players = teamObj?.players ?? [];
       const { goalkeepers } = splitRoster(players);
       return {
         open: true,
         kind: 'goalkeeper' as PickerKind,
         players: goalkeepers,
-        adhocPlayers: [],
-        teamColor: match.homeColor,
-        teamName: match.home,
+        adhocPlayers: adhocPlayersFor(events, gkIsOurs ? 'home' : 'away'),
+        teamColor: gkColor,
+        teamName: gkTeamName,
         onPick: handleShotGkPicked,
       };
     }
@@ -306,51 +385,53 @@ export const LiveMatchPage = () => {
         onClockChange={setClock}
       />
 
+      {/* Attacker selector — arriba de todo para controlar stats y carga */}
+      <div className="rounded-lg border border-border bg-surface p-1 flex gap-1">
+        {(['home', 'away'] as const).map((t) => {
+          const active = attacker === t;
+          const label = t === 'home' ? match.home : match.away;
+          const color = t === 'home' ? match.homeColor : match.awayColor;
+          return (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setAttackerAndReset(t)}
+              className={cn(
+                'flex-1 h-9 text-xs font-medium rounded-md transition-colors flex items-center justify-center gap-1.5 truncate px-2',
+                active ? 'bg-primary/15 border border-primary/40 text-primary' : 'text-muted-fg hover:text-fg',
+              )}
+            >
+              <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color }} />
+              <span className="truncate">{label}</span>
+            </button>
+          );
+        })}
+      </div>
+
       <LiveStats
         events={events}
         home={match.home}
         away={match.away}
         homeColor={match.homeColor}
         awayColor={match.awayColor}
+        focus={attacker}
       />
 
-      <div className="grid grid-cols-2 gap-2">
-        <div className="rounded-lg border border-border bg-surface p-1 flex">
-          {(['full', 'quick'] as const).map((m) => (
-            <button
-              key={m}
-              type="button"
-              onClick={() => setMode(m)}
-              className={cn(
-                'flex-1 h-8 text-xs font-medium rounded-md transition-colors',
-                mode === m ? 'bg-primary/20 text-primary' : 'text-muted-fg hover:text-fg',
-              )}
-            >
-              {m === 'full' ? 'Completo' : 'Rápido'}
-            </button>
-          ))}
-        </div>
-        <div className="rounded-lg border border-border bg-surface p-1 flex">
-          {(['home', 'away'] as const).map((t) => {
-            const active = attacker === t;
-            const label = t === 'home' ? match.home : match.away;
-            const color = t === 'home' ? match.homeColor : match.awayColor;
-            return (
-              <button
-                key={t}
-                type="button"
-                onClick={() => setAttackerAndReset(t)}
-                className={cn(
-                  'flex-1 h-8 text-xs font-medium rounded-md transition-colors flex items-center justify-center gap-1.5 truncate px-2',
-                  active ? 'bg-surface-2 text-fg' : 'text-muted-fg',
-                )}
-              >
-                <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color }} />
-                <span className="truncate">{label}</span>
-              </button>
-            );
-          })}
-        </div>
+      {/* Mode only — attacker already above */}
+      <div className="rounded-lg border border-border bg-surface p-1 flex">
+        {(['full', 'quick'] as const).map((m) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => setMode(m)}
+            className={cn(
+              'flex-1 h-8 text-xs font-medium rounded-md transition-colors',
+              mode === m ? 'bg-primary/20 text-primary' : 'text-muted-fg hover:text-fg',
+            )}
+          >
+            {m === 'full' ? 'Completo' : 'Rápido'}
+          </button>
+        ))}
       </div>
 
       {/* Step 1: arco — tapping a quadrant triggers the outcome popup */}

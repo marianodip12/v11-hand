@@ -52,7 +52,7 @@ export const Dialog = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby={title ? 'dialog-title' : undefined}
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 pb-20 sm:pb-4 animate-fade-in"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -65,8 +65,8 @@ export const Dialog = ({
         ref={ref}
         className={cn(
           'relative w-full sm:max-w-md bg-surface border border-border',
-          'rounded-t-2xl sm:rounded-2xl p-5 shadow-2xl',
-          'max-h-[92vh] overflow-y-auto',
+          'rounded-2xl p-5 shadow-2xl',
+          'max-h-[78vh] sm:max-h-[88vh] overflow-y-auto',
           'animate-slide-up',
           className,
         )}

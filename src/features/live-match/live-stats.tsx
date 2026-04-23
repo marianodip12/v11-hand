@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { computeMatchStats } from '@/domain/stats';
-import type { HandballEvent } from '@/domain/types';
+import type { HandballEvent, Team } from '@/domain/types';
 import { cn } from '@/lib/cn';
 
 export interface LiveStatsProps {
@@ -9,20 +9,11 @@ export interface LiveStatsProps {
   away: string;
   homeColor: string;
   awayColor: string;
+  focus: Team;
 }
 
-/**
- * Live stats block — v9-inspired redesign.
- *
- * Layout:
- *   - Team tabs (home / away) at the top to switch focus.
- *   - 3x3 grid of metric tiles for the focused team.
- *   - GK save-rate banner if relevant.
- *   - "Comparativa" section with horizontal bars vs the other team.
- */
-export const LiveStats = ({ events, home, away, homeColor, awayColor }: LiveStatsProps) => {
+export const LiveStats = ({ events, home, away, homeColor, awayColor, focus }: LiveStatsProps) => {
   const s = useMemo(() => computeMatchStats(events), [events]);
-  const [focus, setFocus] = useState<'home' | 'away'>('home');
 
   const isHome = focus === 'home';
   const focusColor = isHome ? homeColor : awayColor;
@@ -32,14 +23,12 @@ export const LiveStats = ({ events, home, away, homeColor, awayColor }: LiveStat
     goals:     isHome ? s.homeGoals   : s.awayGoals,
     shots:     isHome ? s.homeShots   : s.awayShots,
     pct:       isHome ? s.homePct     : s.awayPct,
-    savedAg:   isHome ? s.homeSaved   : s.awaySaved,         // our shots saved by rival GK
+    savedAg:   isHome ? s.homeSaved   : s.awaySaved,
     missed:    isHome ? s.homeMiss    : s.awayMiss,
     turnovers: isHome ? s.homeTurnover: s.awayTurnover,
     excl:      isHome ? s.homeExcl    : s.awayExcl,
     penals:    isHome ? s.homePenals  : s.awayPenals,
-    // Goals against = goals scored by the other team
     goalsAg:   isHome ? s.awayGoals   : s.homeGoals,
-    // GK bar at the bottom refers to the OPPOSING GK facing our shots
     oppGKSaved: isHome ? s.rivalGKSaved : s.homeGKSaved,
     oppGKTotal: isHome ? s.rivalGKTotal : s.homeGKTotal,
     oppGKPct:   isHome ? s.rivalGKPct   : s.homeGKPct,
@@ -47,40 +36,13 @@ export const LiveStats = ({ events, home, away, homeColor, awayColor }: LiveStat
   };
 
   return (
-    <div className="rounded-lg border border-border bg-surface overflow-hidden">
-      {/* Team focus tabs */}
-      <div className="flex p-1 gap-1 bg-surface-2/40">
-        {(['home', 'away'] as const).map((t) => {
-          const active = focus === t;
-          const label = t === 'home' ? home : away;
-          const color = t === 'home' ? homeColor : awayColor;
-          return (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setFocus(t)}
-              className={cn(
-                'flex-1 h-9 rounded-md text-xs font-medium flex items-center justify-center gap-1.5 truncate px-2 transition-colors duration-fast',
-                active
-                  ? 'bg-primary/15 border border-primary/40 text-primary'
-                  : 'text-muted-fg hover:text-fg',
-              )}
-            >
-              <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color }} />
-              <span className="truncate">{label}</span>
-            </button>
-          );
-        })}
-      </div>
-
+    <div className="rounded-lg border border-border bg-surface">
       <div className="p-3 space-y-3">
-        {/* Team header */}
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full" style={{ background: focusColor }} />
           <span className="text-sm font-medium text-fg">{focusName}</span>
         </div>
 
-        {/* Stat tiles — 3x3 grid, v9 aesthetic */}
         <div className="grid grid-cols-3 gap-2">
           <StatTile value={focused.goals}     label="Goles"       tone="goal" big />
           <StatTile value={focused.shots}     label="Tiros"       tone="neutral" big />
@@ -95,7 +57,6 @@ export const LiveStats = ({ events, home, away, homeColor, awayColor }: LiveStat
           <StatTile value={focused.goalsAg}   label="Goles contr." tone="neutral" />
         </div>
 
-        {/* Opposing GK save-rate banner */}
         {focused.oppGKTotal > 0 && (
           <div className="flex items-center justify-between rounded-md bg-save/10 border border-save/30 px-3 py-2">
             <div className="flex items-center gap-1.5 min-w-0">
@@ -113,8 +74,6 @@ export const LiveStats = ({ events, home, away, homeColor, awayColor }: LiveStat
     </div>
   );
 };
-
-// ─── Stat tile ─────────────────────────────────────────────────────────
 
 const TILE_TONE = {
   goal:      'text-goal',
@@ -151,8 +110,6 @@ const StatTile = ({
   </div>
 );
 
-// ─── Compare bar ───────────────────────────────────────────────────────
-
 export const CompareBar = ({
   label,
   mine,
@@ -186,14 +143,8 @@ export const CompareBar = ({
           {mine}
         </span>
         <div className="h-1.5 rounded-full bg-surface-2 overflow-hidden flex">
-          <div
-            className="h-full transition-all duration-300"
-            style={{ width: `${minePct}%`, background: myColor }}
-          />
-          <div
-            className="h-full transition-all duration-300 opacity-60"
-            style={{ width: `${theirPct}%`, background: theirColor }}
-          />
+          <div className="h-full" style={{ width: `${minePct}%`, background: myColor }} />
+          <div className="h-full opacity-60" style={{ width: `${theirPct}%`, background: theirColor }} />
         </div>
         <span className={cn('font-mono text-sm font-semibold tabular w-6 text-left', numTone)}>
           {theirs}
@@ -203,19 +154,8 @@ export const CompareBar = ({
   );
 };
 
-// ─── Icon ──────────────────────────────────────────────────────────────
-
 const GlovesIcon = () => (
-  <svg
-    width="13"
-    height="13"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M8 20V9a2 2 0 1 1 4 0v3" />
     <path d="M12 12V5a2 2 0 1 1 4 0v7" />
     <path d="M16 12V7a2 2 0 1 1 4 0v9a6 6 0 0 1-6 6H8a6 6 0 0 1-6-6v-1a2 2 0 1 1 4 0" />
