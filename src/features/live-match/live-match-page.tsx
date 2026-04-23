@@ -15,6 +15,7 @@ import type {
   CourtZoneId,
   EventType,
   GoalZoneId,
+  HandballEvent,
   PersonRef,
   Team,
 } from '@/domain/types';
@@ -25,6 +26,24 @@ import { PlayerPicker, type PickerKind } from './player-picker';
 import { LiveStats } from './live-stats';
 import { EventTimeline } from './event-timeline';
 import { ShotOutcomeDialog, type ShotOutcome } from './shot-outcome-dialog';
+
+/**
+ * Collects people (shooters + sanctioned) already tagged for `team` in this
+ * match. Dedups by number — later taggings override the name so if the
+ * user upgraded "#7" to "Carlos #7" later, the upgraded version wins.
+ */
+const adhocPlayersFor = (events: HandballEvent[], team: Team): PersonRef[] => {
+  const byNumber = new Map<number, PersonRef>();
+  for (const e of events) {
+    if (e.team !== team) continue;
+    const refs: (PersonRef | null | undefined)[] = [e.shooter, e.sanctioned, e.goalkeeper];
+    for (const r of refs) {
+      if (!r) continue;
+      byNumber.set(r.number, r);
+    }
+  }
+  return Array.from(byNumber.values()).sort((a, b) => a.number - b.number);
+};
 
 type Mode = 'quick' | 'full';
 
@@ -210,10 +229,12 @@ export const LiveMatchPage = () => {
       );
       const players = teamObj?.players ?? [];
       const { fieldPlayers } = splitRoster(players);
+      const adhoc = adhocPlayersFor(events, d.team);
       return {
         open: true,
         kind: 'shooter' as PickerKind,
         players: fieldPlayers,
+        adhocPlayers: adhoc,
         teamColor: d.team === 'home' ? match.homeColor : match.awayColor,
         teamName: d.team === 'home' ? match.home : match.away,
         onPick: handleShotShooterPicked,
@@ -221,7 +242,6 @@ export const LiveMatchPage = () => {
     }
 
     if (pendingShot && pendingShot.step === 'goalkeeper') {
-      // Only ever reached when the rival attacked — we're asking for OUR GK
       const teamObj = teams.find((t) => t.name === match.home);
       const players = teamObj?.players ?? [];
       const { goalkeepers } = splitRoster(players);
@@ -229,6 +249,7 @@ export const LiveMatchPage = () => {
         open: true,
         kind: 'goalkeeper' as PickerKind,
         players: goalkeepers,
+        adhocPlayers: [],
         teamColor: match.homeColor,
         teamName: match.home,
         onPick: handleShotGkPicked,
@@ -241,10 +262,12 @@ export const LiveMatchPage = () => {
         (t) => t.name === (team === 'home' ? match.home : match.away),
       );
       const players = teamObj?.players ?? [];
+      const adhoc = adhocPlayersFor(events, team);
       return {
         open: true,
         kind: 'sanctioned' as PickerKind,
         players,
+        adhocPlayers: adhoc,
         teamColor: team === 'home' ? match.homeColor : match.awayColor,
         teamName: team === 'home' ? match.home : match.away,
         onPick: handleTaggedPicked,
@@ -253,7 +276,7 @@ export const LiveMatchPage = () => {
 
     return null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingShot, pendingTagged, teams, match]);
+  }, [pendingShot, pendingTagged, teams, match, events]);
 
   const handleFinish = () => {
     if (window.confirm('¿Finalizar el partido y guardarlo?')) {
@@ -521,6 +544,7 @@ export const LiveMatchPage = () => {
           }}
           onPick={pickerContext.onPick}
           players={pickerContext.players}
+          adhocPlayers={pickerContext.adhocPlayers}
           teamColor={pickerContext.teamColor}
           teamName={pickerContext.teamName}
           kind={pickerContext.kind}

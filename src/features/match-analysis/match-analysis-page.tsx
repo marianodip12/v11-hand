@@ -174,11 +174,16 @@ export const MatchAnalysisPage = () => {
         )}
       >
         <CardContent className="p-3">
-          <div className="grid grid-cols-4 gap-2">
-            <SummaryTile value={summary.shots}  label="Tiros"     tone="neutral" />
-            <SummaryTile value={summary.goals}  label="Goles"     tone="goal" />
-            <SummaryTile value={summary.saved}  label="Atajadas"  tone="save" />
-            <SummaryTile value={`${summary.pct}%`} label="Efect." tone="neutral" />
+          <div className="grid grid-cols-3 gap-2 mb-2">
+            <SummaryTile value={summary.shots}     label="Lanzam."  tone="neutral" big />
+            <SummaryTile value={summary.goals}     label="Goles"    tone="goal"    big />
+            <SummaryTile value={`${summary.pct}%`} label="Efect."   tone="goal"    big />
+          </div>
+          <div className="grid grid-cols-4 gap-1.5">
+            <SummaryTile value={summary.saved} label="Atajadas" tone="save" />
+            <SummaryTile value={summary.post}  label="Palos"    tone="warning" />
+            <SummaryTile value={summary.out}   label="Fuera"    tone="neutral" />
+            <SummaryTile value={summary.miss - summary.out} label="Errados" tone="neutral" />
           </div>
           <div className="text-[10px] text-muted-fg mt-2 text-center">
             {isEmptyFilter(filter)
@@ -397,6 +402,7 @@ const FilterTeamButton = ({
 const TONE: Record<string, string> = {
   goal: 'text-goal',
   save: 'text-save',
+  warning: 'text-warning',
   neutral: 'text-fg',
 };
 
@@ -404,16 +410,22 @@ const SummaryTile = ({
   value,
   label,
   tone,
+  big = false,
 }: {
   value: number | string;
   label: string;
-  tone: 'goal' | 'save' | 'neutral';
+  tone: 'goal' | 'save' | 'warning' | 'neutral';
+  big?: boolean;
 }) => (
-  <div className="flex flex-col items-center">
-    <span className={cn('font-mono text-xl font-semibold tabular leading-none', TONE[tone])}>
+  <div className="flex flex-col items-center justify-center rounded-md bg-surface-2/50 border border-border py-1.5">
+    <span className={cn(
+      'font-mono font-semibold tabular leading-none',
+      TONE[tone],
+      big ? 'text-xl' : 'text-base',
+    )}>
       {value}
     </span>
-    <span className="text-[9px] uppercase tracking-widest text-muted-fg mt-1">
+    <span className="text-[8px] uppercase tracking-widest text-muted-fg mt-1">
       {label}
     </span>
   </div>

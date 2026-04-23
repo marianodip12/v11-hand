@@ -1,5 +1,4 @@
-import { useEffect, useState } from 'react';
-import { Dialog, DialogFooter } from '@/components/ui/dialog';
+import { Dialog } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { GOAL_QUADRANTS, COURT_ZONES } from '@/domain/constants';
 import type { CourtZoneId, GoalZoneId } from '@/domain/types';
@@ -15,13 +14,6 @@ export interface ShotOutcomeDialogProps {
   onConfirm: (outcome: ShotOutcome) => void;
 }
 
-const OUTCOME_META: Record<ShotOutcome, { label: string; emoji: string; tone: string }> = {
-  goal:  { label: 'Gol',     emoji: '⚽', tone: 'bg-goal text-white' },
-  saved: { label: 'Atajada', emoji: '🧤', tone: 'bg-save text-white' },
-  miss:  { label: 'Errado',  emoji: '❌', tone: 'bg-surface-2 text-fg border border-border' },
-  post:  { label: 'Palo',    emoji: '🪵', tone: 'bg-warning/20 text-warning border border-warning/40' },
-};
-
 export const ShotOutcomeDialog = ({
   open,
   onClose,
@@ -29,45 +21,8 @@ export const ShotOutcomeDialog = ({
   courtZone,
   onConfirm,
 }: ShotOutcomeDialogProps) => {
-  const [picked, setPicked] = useState<ShotOutcome | null>(null);
-
-  useEffect(() => {
-    if (!open) setPicked(null);
-  }, [open]);
-
   const goalLabel = labelForGoalZone(goalZone);
   const courtLabel = labelForCourtZone(courtZone);
-
-  if (picked) {
-    const meta = OUTCOME_META[picked];
-    return (
-      <Dialog open={open} onClose={onClose} title="¿Confirmás?">
-        <div className="flex items-center justify-center gap-2 mb-4 text-xs text-muted-fg">
-          {courtLabel && (
-            <span className="px-2 py-1 rounded-md bg-surface-2 border border-border text-fg">
-              {courtLabel}
-            </span>
-          )}
-          <span>→</span>
-          {goalLabel && (
-            <span className="px-2 py-1 rounded-md border bg-primary/15 border-primary/40 text-primary">
-              {goalLabel}
-            </span>
-          )}
-        </div>
-
-        <div className={cn('rounded-lg py-6 flex flex-col items-center gap-1', meta.tone)}>
-          <div className="text-4xl">{meta.emoji}</div>
-          <div className="text-lg font-semibold">{meta.label}</div>
-        </div>
-
-        <DialogFooter className="sm:justify-end">
-          <Button variant="ghost" onClick={() => setPicked(null)}>Cambiar</Button>
-          <Button onClick={() => onConfirm(picked)}>Confirmar</Button>
-        </DialogFooter>
-      </Dialog>
-    );
-  }
 
   return (
     <Dialog open={open} onClose={onClose} title="¿Qué pasó?">
@@ -91,20 +46,20 @@ export const ShotOutcomeDialog = ({
       </div>
 
       <div className="grid grid-cols-2 gap-2 mb-2">
-        <Button variant="success" onClick={() => setPicked('goal')} className="h-14 text-base">
+        <Button variant="success" onClick={() => onConfirm('goal')} className="h-14 text-base">
           ⚽ Gol
         </Button>
-        <Button onClick={() => setPicked('saved')} className="h-14 text-base bg-save hover:bg-save/90">
+        <Button onClick={() => onConfirm('saved')} className="h-14 text-base bg-save hover:bg-save/90">
           🧤 Atajada
         </Button>
       </div>
       <div className="grid grid-cols-2 gap-2">
-        <Button variant="secondary" onClick={() => setPicked('miss')} className="h-11 text-sm">
+        <Button variant="secondary" onClick={() => onConfirm('miss')} className="h-11 text-sm">
           ❌ Errado
         </Button>
         <Button
           variant="secondary"
-          onClick={() => setPicked('post')}
+          onClick={() => onConfirm('post')}
           className="h-11 text-sm text-warning border-warning/40 bg-warning/10"
         >
           🪵 Palo

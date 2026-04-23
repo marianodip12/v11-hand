@@ -126,7 +126,7 @@ describe('toggle*', () => {
 describe('summarize', () => {
   it('returns zeros for no events', () => {
     expect(summarize([])).toEqual({
-      events: 0, shots: 0, goals: 0, saved: 0, miss: 0, post: 0, pct: 0,
+      events: 0, shots: 0, goals: 0, saved: 0, miss: 0, out: 0, post: 0, pct: 0,
     });
   });
 

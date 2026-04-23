@@ -86,19 +86,23 @@ export interface FilteredSummary {
   shots: number;     // shot attempts (goal + miss + saved + post)
   goals: number;
   saved: number;
-  miss: number;
+  miss: number;      // all non-on-target non-post shots
+  out: number;       // subset of miss: shot tagged as "out" in goalZone
   post: number;
   pct: number;       // goals / shots
 }
 
 export const summarize = (events: HandballEvent[]): FilteredSummary => {
-  let shots = 0, goals = 0, saved = 0, miss = 0, post = 0;
+  let shots = 0, goals = 0, saved = 0, miss = 0, out = 0, post = 0;
   for (const e of events) {
     if (!isShotEvent(e.type)) continue;
     shots++;
     if (e.type === 'goal')       goals++;
     else if (e.type === 'saved') saved++;
-    else if (e.type === 'miss')  miss++;
+    else if (e.type === 'miss') {
+      miss++;
+      if (e.goalZone === 'out') out++;
+    }
     else if (e.type === 'post')  post++;
   }
   return {
@@ -107,6 +111,7 @@ export const summarize = (events: HandballEvent[]): FilteredSummary => {
     goals,
     saved,
     miss,
+    out,
     post,
     pct: shots === 0 ? 0 : Math.round((goals / shots) * 100),
   };
