@@ -57,9 +57,15 @@ export const MatchesPage = () => {
           <p className="text-xs text-muted-fg mt-1">Temporada {seasonYear}</p>
         </div>
         {status === 'idle' && (
-          <Button size="sm" onClick={() => setShowNewMatch(true)}>
-            <PlusIcon /> Nuevo
-          </Button>
+          teams.length === 0 ? (
+            <Button size="sm" variant="secondary" onClick={() => navigate('/teams')}>
+              Cargar equipo
+            </Button>
+          ) : (
+            <Button size="sm" onClick={() => setShowNewMatch(true)}>
+              <PlusIcon /> Nuevo
+            </Button>
+          )
         )}
       </header>
 
@@ -81,16 +87,29 @@ export const MatchesPage = () => {
       )}
 
       {status === 'idle' && completed.length === 0 && (
-        <EmptyState
-          icon={<BallIcon />}
-          title="Sin partidos aún"
-          description="Empezá registrando tu primer partido. Los datos se sincronizan con Supabase automáticamente."
-          action={
-            <Button onClick={() => setShowNewMatch(true)}>
-              <PlusIcon /> Nuevo partido
-            </Button>
-          }
-        />
+        teams.length === 0 ? (
+          <EmptyState
+            icon={<BallIcon />}
+            title="Primero cargá tu equipo"
+            description="Para registrar partidos necesitás tener al menos un equipo. Creá el tuyo en la pantalla de Equipos."
+            action={
+              <Button onClick={() => navigate('/teams')}>
+                Ir a Equipos
+              </Button>
+            }
+          />
+        ) : (
+          <EmptyState
+            icon={<BallIcon />}
+            title="Sin partidos aún"
+            description="Empezá registrando tu primer partido. Los datos se sincronizan con Supabase automáticamente."
+            action={
+              <Button onClick={() => setShowNewMatch(true)}>
+                <PlusIcon /> Nuevo partido
+              </Button>
+            }
+          />
+        )
       )}
 
       {completed.length > 0 && (

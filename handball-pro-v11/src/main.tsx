@@ -5,9 +5,9 @@ import { useMatchStore } from './lib/store';
 import { seedDemoData } from './lib/seed';
 import './styles/globals.css';
 
-// Seed demo data in dev so the Matches screen isn't empty on first boot.
-// In production this path is a no-op — seedDemoData only runs in dev mode.
-if (import.meta.env.DEV) {
+// Seed demo data only when explicitly requested via URL flag (?seed=demo).
+// This keeps the app empty on first launch so you can load your own team.
+if (import.meta.env.DEV && new URLSearchParams(location.search).get('seed') === 'demo') {
   seedDemoData(useMatchStore.getState());
 }
 

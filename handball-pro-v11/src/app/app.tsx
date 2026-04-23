@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AppShell } from './app-shell';
 import { ComingSoonPage } from './coming-soon-page';
 import { MatchesPage } from '@/features/matches/matches-page';
+import { TeamsPage } from '@/features/teams/teams-page';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -20,7 +21,7 @@ const router = createBrowserRouter([
     element: <AppShell />,
     children: [
       { index: true, element: <MatchesPage /> },
-      { path: 'teams',     element: <ComingSoonPage title="Equipos"   /> },
+      { path: 'teams',     element: <TeamsPage /> },
       { path: 'live',      element: <ComingSoonPage title="En vivo"   /> },
       { path: 'stats',     element: <ComingSoonPage title="Stats"     /> },
       { path: 'evolution', element: <ComingSoonPage title="Evolución" /> },
