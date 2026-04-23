@@ -323,35 +323,11 @@ export const LiveMatchPage = () => {
         </div>
       </div>
 
-      {/* Step 1: cancha */}
+      {/* Step 1: arco — tapping a quadrant triggers the outcome popup */}
       <section>
         <div className="flex items-center gap-2 mb-1.5">
           <StepNumber n={1} />
-          <h3 className="text-xs font-medium text-fg">¿Desde dónde tiró?</h3>
-        </div>
-        <CourtView
-          selectedZone={draft.courtZone === 'long_range' ? null : draft.courtZone}
-          onZoneSelect={handleCourtZone}
-        />
-        <button
-          type="button"
-          onClick={() => handleCourtZone(longRangeActive ? null : 'long_range')}
-          className={cn(
-            'mt-2 w-full h-10 rounded-md border text-xs font-medium transition-colors duration-fast touch-target',
-            longRangeActive
-              ? 'border-card/60 bg-card/20 text-card'
-              : 'border-card/30 bg-card/5 text-card/80 hover:bg-card/10',
-          )}
-        >
-          Arco a Arco
-        </button>
-      </section>
-
-      {/* Step 2: arco — tapping a quadrant triggers the outcome popup */}
-      <section>
-        <div className="flex items-center gap-2 mb-1.5">
-          <StepNumber n={2} />
-          <h3 className="text-xs font-medium text-fg">Tocá el cuadrante donde fue el tiro</h3>
+          <h3 className="text-xs font-medium text-fg">🎯 ¿A qué cuadrante fue?</h3>
         </div>
         <GoalGrid
           selected={draft.goalZone}
@@ -402,6 +378,30 @@ export const LiveMatchPage = () => {
         </div>
       </section>
 
+      {/* Step 2: cancha */}
+      <section>
+        <div className="flex items-center gap-2 mb-1.5">
+          <StepNumber n={2} />
+          <h3 className="text-xs font-medium text-fg">🏐 ¿Desde dónde tiró?</h3>
+        </div>
+        <CourtView
+          selectedZone={draft.courtZone === 'long_range' ? null : draft.courtZone}
+          onZoneSelect={handleCourtZone}
+        />
+        <button
+          type="button"
+          onClick={() => handleCourtZone(longRangeActive ? null : 'long_range')}
+          className={cn(
+            'mt-2 w-full h-10 rounded-md border text-xs font-medium transition-colors duration-fast touch-target',
+            longRangeActive
+              ? 'border-card/60 bg-card/20 text-card'
+              : 'border-card/30 bg-card/5 text-card/80 hover:bg-card/10',
+          )}
+        >
+          🎯 Arco a Arco
+        </button>
+      </section>
+
       {/* Non-shot events (no big shot CTAs anymore) */}
       <section>
         <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-fg mb-1.5">
@@ -414,7 +414,7 @@ export const LiveMatchPage = () => {
             onClick={() => handleNonShotCta('turnover', attacker)}
             className="h-10 text-xs"
           >
-            Pérdida
+            🔄 Pérdida
           </Button>
           <Button
             size="sm"
@@ -422,7 +422,7 @@ export const LiveMatchPage = () => {
             onClick={() => handleNonShotCta('exclusion', attacker)}
             className="h-10 text-xs text-exclusion"
           >
-            2'
+            ⏱ 2'
           </Button>
           <Button
             size="sm"
@@ -430,7 +430,7 @@ export const LiveMatchPage = () => {
             onClick={() => handleNonShotCta('timeout', attacker)}
             className="h-10 text-xs"
           >
-            T. muerto
+            ✋ T.M.
           </Button>
           <Button
             size="sm"
@@ -445,7 +445,7 @@ export const LiveMatchPage = () => {
             }}
             className="h-10 text-xs"
           >
-            Descanso
+            ⏸ Descanso
           </Button>
         </div>
         <div className="grid grid-cols-3 gap-1.5 mt-1.5">
@@ -455,7 +455,7 @@ export const LiveMatchPage = () => {
             onClick={() => handleNonShotCta('yellow_card', attacker)}
             className="h-9 text-xs text-warning"
           >
-            Amarilla
+            🟨 Amarilla
           </Button>
           <Button
             size="sm"
@@ -463,7 +463,7 @@ export const LiveMatchPage = () => {
             onClick={() => handleNonShotCta('blue_card', attacker)}
             className="h-9 text-xs text-primary"
           >
-            Azul
+            🟦 Azul
           </Button>
           <Button
             size="sm"
@@ -471,7 +471,7 @@ export const LiveMatchPage = () => {
             onClick={() => handleNonShotCta('red_card', attacker)}
             className="h-9 text-xs text-danger"
           >
-            Roja
+            🟥 Roja
           </Button>
         </div>
       </section>

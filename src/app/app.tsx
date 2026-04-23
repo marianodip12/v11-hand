@@ -5,6 +5,7 @@ import { ComingSoonPage } from './coming-soon-page';
 import { MatchesPage } from '@/features/matches/matches-page';
 import { TeamsPage } from '@/features/teams/teams-page';
 import { LiveMatchPage } from '@/features/live-match/live-match-page';
+import { MatchAnalysisPage } from '@/features/match-analysis/match-analysis-page';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -26,7 +27,7 @@ const router = createBrowserRouter([
       { path: 'live',      element: <LiveMatchPage /> },
       { path: 'stats',     element: <ComingSoonPage title="Stats"     /> },
       { path: 'evolution', element: <ComingSoonPage title="Evolución" /> },
-      { path: 'analysis/:id', element: <ComingSoonPage title="Análisis" /> },
+      { path: 'analysis/:id', element: <MatchAnalysisPage /> },
       { path: '*', element: <Navigate to="/" replace /> },
     ],
   },

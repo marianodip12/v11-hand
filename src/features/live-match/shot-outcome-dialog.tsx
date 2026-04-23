@@ -64,13 +64,13 @@ export const ShotOutcomeDialog = ({
           onClick={() => onPick('goal')}
           className="h-14 text-base"
         >
-          Gol
+          ⚽ Gol
         </Button>
         <Button
           onClick={() => onPick('saved')}
           className="h-14 text-base bg-save hover:bg-save/90"
         >
-          Atajada
+          🧤 Atajada
         </Button>
       </div>
 
@@ -80,14 +80,14 @@ export const ShotOutcomeDialog = ({
           onClick={() => onPick('miss')}
           className="h-11 text-sm"
         >
-          Errado
+          ❌ Errado
         </Button>
         <Button
           variant="secondary"
           onClick={() => onPick('post')}
           className="h-11 text-sm text-warning border-warning/40 bg-warning/10"
         >
-          Palo
+          🪵 Palo
         </Button>
       </div>
     </Dialog>

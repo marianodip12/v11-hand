@@ -52,7 +52,7 @@ export const MatchesPage = () => {
           <div className="text-[10px] font-semibold tracking-[3px] uppercase text-primary mb-1">
             Handball Pro
           </div>
-          <h1 className="text-2xl font-semibold leading-tight">Partidos</h1>
+          <h1 className="text-2xl font-semibold leading-tight">🤾 Partidos</h1>
           <p className="text-xs text-muted-fg mt-1">Temporada {seasonYear}</p>
         </div>
         {status === 'idle' && (
