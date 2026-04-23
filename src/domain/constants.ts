@@ -7,7 +7,8 @@ import type {
 } from './types';
 
 // ─── Court zones metadata ──────────────────────────────────────────────
-// Keep keys ordered as they appear visually on the court (left → right, top → bottom).
+// Keep keys ordered as they appear visually on the court (left → right, top → bottom),
+// with meta-zones ("7m", "long_range") at the end.
 export const COURT_ZONES: Record<
   CourtZoneId,
   { label: string; short: string }
@@ -21,6 +22,7 @@ export const COURT_ZONES: Record<
   near_center:   { label: 'Pivote',       short: 'PI' },
   near_right:    { label: 'Cerca Der.',   short: 'CD' },
   '7m':          { label: '7m (penal)',   short: '7m' },
+  long_range:    { label: 'Arco a Arco',  short: 'AA' },
 };
 
 // ─── Goal quadrants metadata ────────────────────────────────────────────

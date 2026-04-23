@@ -6,7 +6,8 @@
  */
 
 // ─── Zones on the court ────────────────────────────────────────────────
-// 9 selectable court zones, matching the original CourtView geometry.
+// 9 selectable court zones, matching the original CourtView geometry,
+// plus the special "long_range" zone (shot from the shooter's own half).
 export type CourtZoneId =
   | 'extreme_left'   // Extremo Izq
   | 'lateral_left'   // Lateral Izq (anillo 6–9m, izq)
@@ -16,7 +17,8 @@ export type CourtZoneId =
   | 'near_left'      // Cerca Izq (abajo del 9m)
   | 'near_center'    // Pivote
   | 'near_right'     // Cerca Der
-  | '7m';            // Penal
+  | '7m'             // Penal
+  | 'long_range';    // Arco-a-Arco (tirado desde la propia mitad)
 
 // ─── Goal quadrants (9-grid inside the goal) ───────────────────────────
 export type GoalQuadrantId =
@@ -25,10 +27,9 @@ export type GoalQuadrantId =
   | 'bl' | 'bc' | 'br';
 
 // Plus meta-regions for where the shot ended up, outside the 9-grid:
-export type GoalZoneId = GoalQuadrantId | 'post' | 'out' | 'long_range';
-//   post       → travesaño / palo (lo tocó el arco, no entró)
-//   out        → fuera del arco (disparo que no fue al 3x3 ni al palo)
-//   long_range → arco-a-arco (shot from own half, special case)
+export type GoalZoneId = GoalQuadrantId | 'post' | 'out';
+//   post  → travesaño / palo (lo tocó el arco, no entró)
+//   out   → fuera del arco (disparo que no fue al 3x3 ni al palo)
 
 // ─── Event types ────────────────────────────────────────────────────────
 export type EventType =

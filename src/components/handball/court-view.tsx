@@ -43,7 +43,11 @@ import { cn } from '@/lib/cn';
 //   x=212 → y≈100
 //   x=295 → y≈65
 
-const PATH: Record<CourtZoneId, string> = {
+// Zones that render inside the SVG. long_range is not drawn here — it's a
+// separate button outside the court (handled by the page).
+type DrawableZoneId = Exclude<CourtZoneId, 'long_range'>;
+
+const PATH: Record<DrawableZoneId, string> = {
   // Extremos: strip lateral desde el borde hasta el arco de 6m.
   extreme_left:
     'M 0 0 L 65 0 L 65 132 Q 30 110 0 65 Z',
@@ -73,7 +77,7 @@ const PATH: Record<CourtZoneId, string> = {
 };
 
 // Where heatmap numbers are drawn (center of each zone).
-const LABEL_POS: Record<Exclude<CourtZoneId, '7m'>, { x: number; y: number }> = {
+const LABEL_POS: Record<Exclude<DrawableZoneId, '7m'>, { x: number; y: number }> = {
   extreme_left:  { x: 32,  y: 85 },
   lateral_left:  { x: 106, y: 135 },
   center_above:  { x: 180, y: 140 },
@@ -153,7 +157,7 @@ const CourtViewComponent = ({
         <rect width="360" height="300" fill="var(--court-bg)" />
 
         {/* Zonas clickeables (debajo de las líneas para que las líneas queden encima) */}
-        {(Object.keys(PATH) as CourtZoneId[])
+        {(Object.keys(PATH) as DrawableZoneId[])
           .filter((id) => id !== '7m')
           .map((id) => (
             <path

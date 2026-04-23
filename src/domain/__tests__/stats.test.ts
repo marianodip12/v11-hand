@@ -62,6 +62,20 @@ describe('computeMatchStats', () => {
     expect(s.homeShots).toBe(5);   // 2 goals + 1 miss + 1 saved + 1 post
   });
 
+  it('computes on-target separately from total shots', () => {
+    const events = [
+      mk({ type: 'goal',  team: 'home' }),
+      mk({ type: 'goal',  team: 'home' }),
+      mk({ type: 'saved', team: 'home' }),  // on target
+      mk({ type: 'miss',  team: 'home' }),  // not on target
+      mk({ type: 'post',  team: 'home' }),  // not on target
+    ];
+    const s = computeMatchStats(events);
+    expect(s.homeOnTarget).toBe(3);        // 2 goals + 1 saved
+    expect(s.homeShots).toBe(5);
+    expect(s.homePost).toBe(1);
+  });
+
   it('computes goal conversion percentage', () => {
     const events = [
       // home: 3 goals / 5 shots = 60%

@@ -29,8 +29,7 @@ export const Scoreboard = ({
 }: ScoreboardProps) => {
   const [editOpen, setEditOpen] = useState(false);
 
-  // Tick every second while the clock is running.
-  // Using ref to avoid stale closures on rapid toggles.
+  // 1-second tick while running. Ref avoids stale closures on rapid toggles.
   const clockRef = useRef(clock);
   clockRef.current = clock;
 
@@ -51,49 +50,54 @@ export const Scoreboard = ({
 
   return (
     <>
-      <div className="rounded-lg border border-border bg-surface">
-        {/* Teams + scores */}
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 p-3 pb-2">
+      <div className="rounded-lg border border-border bg-surface p-3">
+        {/* Scores row: [home score] [centered clock+half] [away score] */}
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
           <TeamSide name={home} score={homeScore} color={homeColor} align="left" />
-          <div className="text-[10px] text-muted-fg">VS</div>
+
+          <div className="flex flex-col items-center min-w-[104px]">
+            <div className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-danger animate-pulse-live" />
+              <span className="text-[9px] font-semibold uppercase tracking-widest text-danger">
+                En vivo
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setEditOpen(true)}
+              className="font-mono text-2xl font-semibold tabular text-fg leading-none mt-1 hover:text-primary transition-colors"
+              title="Tocá para ajustar el tiempo"
+            >
+              {mm}:{ss}
+            </button>
+            <div className="mt-1.5 px-2 py-0.5 rounded-full bg-primary/15 border border-primary/30 text-[10px] font-medium text-primary">
+              {clock.half === 1 ? '1er tiempo' : '2do tiempo'} · {minute}'
+            </div>
+          </div>
+
           <TeamSide name={away} score={awayScore} color={awayColor} align="right" />
         </div>
 
-        {/* Clock row */}
-        <div className="flex items-center gap-2 px-3 pb-3 border-t border-border pt-2">
-          <div className="flex flex-col items-start">
-            <span className="text-[9px] uppercase tracking-widest text-danger font-semibold">
-              ● En vivo
-            </span>
-            <div
-              className="font-mono text-xl font-semibold tabular text-fg leading-none mt-0.5 cursor-pointer"
-              onClick={() => setEditOpen(true)}
-              title="Corregir tiempo"
-            >
-              {mm}:{ss}
-            </div>
-            <span className="text-[9px] text-muted-fg mt-0.5">
-              Minuto {minute} · {clock.half === 1 ? '1er tiempo' : '2do tiempo'}
-            </span>
-          </div>
-
-          <div className="flex gap-1 ml-auto">
-            <Button
-              size="sm"
-              variant={clock.running ? 'secondary' : 'primary'}
-              onClick={toggle}
-              className="h-9 px-3 text-xs"
-            >
-              {clock.running ? <PauseIcon /> : <PlayIcon />}
-              {clock.running ? 'Pausar' : 'Iniciar'}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => adjust(-30)} className="h-9 px-2 text-xs" aria-label="Restar 30 segundos">
-              −30s
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => adjust(30)} className="h-9 px-2 text-xs" aria-label="Sumar 30 segundos">
-              +30s
-            </Button>
-          </div>
+        {/* Clock controls */}
+        <div className="flex gap-1.5 mt-3">
+          <Button
+            size="sm"
+            variant={clock.running ? 'secondary' : 'primary'}
+            onClick={toggle}
+            className="flex-1 h-9 text-xs"
+          >
+            {clock.running ? <PauseIcon /> : <PlayIcon />}
+            {clock.running ? 'Pausar' : 'Iniciar'}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => adjust(-30)} className="h-9 px-2.5 text-xs">
+            −30s
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => adjust(30)} className="h-9 px-2.5 text-xs">
+            +30s
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => setEditOpen(true)} className="h-9 px-2.5 text-xs">
+            Ajustar
+          </Button>
         </div>
       </div>
 
@@ -106,8 +110,6 @@ export const Scoreboard = ({
     </>
   );
 };
-
-// ─── Sub-components ────────────────────────────────────────────────────
 
 const TeamSide = ({
   name,
@@ -123,7 +125,7 @@ const TeamSide = ({
   <div className={cn('min-w-0', align === 'right' ? 'text-right' : 'text-left')}>
     <div
       className={cn(
-        'flex items-center gap-1.5 text-xs font-medium truncate text-fg',
+        'flex items-center gap-1.5 text-xs font-medium text-fg truncate',
         align === 'right' && 'justify-end',
       )}
     >
@@ -135,7 +137,7 @@ const TeamSide = ({
         <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
       )}
     </div>
-    <div className="font-mono text-3xl font-semibold tabular leading-none mt-1">
+    <div className="font-mono text-4xl font-semibold tabular leading-none mt-1">
       {score}
     </div>
   </div>
@@ -155,7 +157,6 @@ const EditClockDialog = ({ open, onClose, clock, onSave }: EditClockDialogProps)
   const [secStr, setSecStr] = useState('0');
   const [half, setHalf] = useState<Half>(1);
 
-  // Seed with current values when opening
   useEffect(() => {
     if (!open) return;
     setMinStr(String(Math.floor(clock.seconds / 60)));
@@ -221,8 +222,6 @@ const EditClockDialog = ({ open, onClose, clock, onSave }: EditClockDialogProps)
     </Dialog>
   );
 };
-
-// ─── Icons ─────────────────────────────────────────────────────────────
 
 const PlayIcon = () => (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">

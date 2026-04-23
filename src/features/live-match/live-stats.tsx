@@ -10,55 +10,144 @@ export interface LiveStatsProps {
 }
 
 /**
- * Mini stats bar under the court: shows the numbers the v8 screen had visible.
- * Two columns (home / away) with key metrics.
+ * Live stats block — sits under the scoreboard.
+ *
+ * Layout mirrors the v8 aesthetic the user liked:
+ *   ┌──────────────────────────────────┐
+ *   │   60% ─── EFECTIVIDAD ──── 50%   │
+ *   │   ▓▓▓▓▓▓▓▓▓░░░░░░░ (bar)         │
+ *   │                                  │
+ *   │   3-2   5-4    2-1    1-0        │
+ *   │  GOLES  TIROS  ATAJ.  EXCL.      │
+ *   └──────────────────────────────────┘
+ *
+ * The bar visualizes goal conversion %: home fills from left, away from right,
+ * with a thin gap in between. If both sides are 0%, bar is empty.
  */
 export const LiveStats = ({ events, homeColor, awayColor }: LiveStatsProps) => {
   const s = useMemo(() => computeMatchStats(events), [events]);
 
-  const rows: Array<{ label: string; h: number | string; a: number | string; accent?: string }> = [
-    { label: 'Goles',      h: s.homeGoals,   a: s.awayGoals,   accent: 'goal' },
-    { label: 'Tiros',      h: s.homeShots,   a: s.awayShots                    },
-    { label: 'Efectividad',h: `${s.homePct}%`, a: `${s.awayPct}%`               },
-    { label: 'Atajadas rival', h: s.rivalGKSaved, a: s.homeGKSaved              },
-    { label: 'Exclusiones',h: s.homeExcl,    a: s.awayExcl,    accent: 'exclusion' },
-    { label: 'Pérdidas',   h: s.homeTurnover, a: s.awayTurnover                 },
+  // Bar segment widths normalize to sum ≤ 100% so neither side overlaps.
+  const homeEff = s.homePct;
+  const awayEff = s.awayPct;
+  const totalEff = homeEff + awayEff;
+  const homeBar = totalEff === 0 ? 0 : (homeEff / totalEff) * 100;
+  const awayBar = totalEff === 0 ? 0 : (awayEff / totalEff) * 100;
+
+  const tiles = [
+    { label: 'Goles',   h: s.homeGoals,    a: s.awayGoals,    accent: 'goal' as const },
+    { label: 'Tiros',   h: s.homeShots,    a: s.awayShots,    accent: 'neutral' as const },
+    { label: 'Atajadas',h: s.homeGKSaved,  a: s.rivalGKSaved, accent: 'save' as const },
+    { label: 'Excl.',   h: s.homeExcl,     a: s.awayExcl,     accent: 'exclusion' as const },
   ];
 
   return (
-    <div className="rounded-lg border border-border bg-surface">
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 py-2 border-b border-border">
-        <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-fg">
-          <span className="w-1.5 h-1.5 rounded-full" style={{ background: homeColor }} />
-          <span>Local</span>
+    <div className="rounded-lg border border-border bg-surface p-3">
+      {/* Effectiveness header — goal conversion rate */}
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+        <div className="font-mono text-lg font-semibold tabular text-right text-fg">
+          {homeEff}%
         </div>
-        <span className="text-[10px] uppercase tracking-widest text-muted-fg">Stats</span>
-        <div className="flex items-center gap-1.5 justify-end text-[10px] font-semibold uppercase tracking-widest text-muted-fg">
-          <span>Visitante</span>
-          <span className="w-1.5 h-1.5 rounded-full" style={{ background: awayColor }} />
+        <div className="text-[9px] font-semibold uppercase tracking-widest text-muted-fg px-2 text-center">
+          Efectividad
+        </div>
+        <div className="font-mono text-lg font-semibold tabular text-left text-fg">
+          {awayEff}%
         </div>
       </div>
-      <ul className="divide-y divide-border">
-        {rows.map((r) => (
-          <li key={r.label} className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 py-1.5">
+
+      {/* Proportional bar */}
+      <div className="mt-1.5 h-1 bg-surface-2 rounded-full overflow-hidden flex">
+        <div
+          className="h-full transition-all duration-300"
+          style={{ width: `${homeBar}%`, background: homeColor }}
+        />
+        <div className="w-[2px] bg-surface" />
+        <div
+          className="h-full transition-all duration-300 ml-auto"
+          style={{ width: `${awayBar}%`, background: awayColor }}
+        />
+      </div>
+
+      {/* Metric tiles: one row per metric, side-by-side local vs visitor */}
+      <div className="grid grid-cols-4 gap-1.5 mt-3">
+        {tiles.map((t) => (
+          <div
+            key={t.label}
+            className={cn(
+              'flex flex-col items-center justify-center rounded-md bg-surface-2/60 py-2 px-1',
+              t.accent === 'exclusion' && 'bg-exclusion/10',
+            )}
+          >
+            <div className="flex items-baseline gap-1">
+              <span className={cn(
+                'font-mono text-base font-semibold tabular',
+                t.accent === 'goal'      && 'text-goal',
+                t.accent === 'save'      && 'text-save',
+                t.accent === 'exclusion' && 'text-exclusion',
+                t.accent === 'neutral'   && 'text-fg',
+              )}>
+                {t.h}
+              </span>
+              <span className="text-muted-fg text-xs">–</span>
+              <span className={cn(
+                'font-mono text-base font-semibold tabular',
+                t.accent === 'goal'      && 'text-goal',
+                t.accent === 'save'      && 'text-save',
+                t.accent === 'exclusion' && 'text-exclusion',
+                t.accent === 'neutral'   && 'text-fg',
+              )}>
+                {t.a}
+              </span>
+            </div>
             <span className={cn(
-              'font-mono text-sm font-semibold tabular text-right',
-              r.accent === 'goal' && 'text-goal',
-              r.accent === 'exclusion' && 'text-exclusion',
+              'text-[8px] uppercase tracking-widest mt-0.5',
+              t.accent === 'exclusion' ? 'text-exclusion' : 'text-muted-fg',
             )}>
-              {r.h}
+              {t.label}
             </span>
-            <span className="text-[11px] text-muted-fg text-center px-2">{r.label}</span>
-            <span className={cn(
-              'font-mono text-sm font-semibold tabular text-left',
-              r.accent === 'goal' && 'text-goal',
-              r.accent === 'exclusion' && 'text-exclusion',
-            )}>
-              {r.a}
-            </span>
-          </li>
+          </div>
         ))}
-      </ul>
+      </div>
+
+      {/* GK save rate row — the metric the user explicitly asked for */}
+      {(s.rivalGKTotal > 0 || s.homeGKTotal > 0) && (
+        <div className="grid grid-cols-2 gap-1.5 mt-2">
+          <GKRow
+            label={`Arq. ${s.rivalGKTotal > 0 ? 'rival' : '—'}`}
+            saved={s.rivalGKSaved}
+            total={s.rivalGKTotal}
+            pct={s.rivalGKPct}
+          />
+          <GKRow
+            label={`Mi arq.`}
+            saved={s.homeGKSaved}
+            total={s.homeGKTotal}
+            pct={s.homeGKPct}
+          />
+        </div>
+      )}
     </div>
   );
 };
+
+const GKRow = ({
+  label,
+  saved,
+  total,
+  pct,
+}: {
+  label: string;
+  saved: number;
+  total: number;
+  pct: number;
+}) => (
+  <div className="flex items-center justify-between rounded-md bg-save/10 border border-save/20 px-2 py-1">
+    <span className="text-[9px] uppercase tracking-widest text-save font-semibold truncate">
+      {label}
+    </span>
+    <span className="font-mono text-xs tabular text-save font-semibold">
+      {saved}/{total} · {pct}%
+    </span>
+  </div>
+);

@@ -14,24 +14,29 @@ export interface MatchStats {
   awayGoals: number;
   homeShots: number;              // all shot attempts (goal+miss+save+post)
   awayShots: number;
-  homeSaved: number;              // shots saved BY the home GK (i.e. saves OF away)
+  homeOnTarget: number;           // shots that reached the goal (goal + saved)
+  awayOnTarget: number;
+  homeSaved: number;              // home shots that were saved by rival GK
   awaySaved: number;              // vice versa
   homeMiss: number;
   awayMiss: number;
+  homePost: number;
+  awayPost: number;
   homeExcl: number;
   awayExcl: number;
   homeTm: number;
   awayTm: number;
   homeTurnover: number;
   awayTurnover: number;
-  homePct: number;                // goal conversion %
+  // Shooting effectiveness: goals / total shots (conversion %).
+  homePct: number;
   awayPct: number;
   // Goalkeeper performance
-  // rivalGK* = rival GK facing OUR shots → their effectiveness
-  rivalGKSaved: number;
-  rivalGKTotal: number;
-  rivalGKPct: number;
-  // homeGK* = our GK facing THEIR shots
+  // rivalGK* = rival GK facing home shots on target → their save rate
+  rivalGKSaved: number;           // how many home shots they saved
+  rivalGKTotal: number;           // home shots on target (goals + saves)
+  rivalGKPct: number;             // saved / total
+  // homeGK* = our GK facing away shots
   homeGKSaved: number;
   homeGKTotal: number;
   homeGKPct: number;
@@ -91,8 +96,11 @@ export const computeMatchStats = (events: HandballEvent[]): MatchStats => {
   return {
     homeGoals, awayGoals,
     homeShots, awayShots,
+    homeOnTarget: homeGoals + homeSaved,
+    awayOnTarget: awayGoals + awaySaved,
     homeSaved, awaySaved,
     homeMiss, awayMiss,
+    homePost, awayPost,
     homeExcl, awayExcl,
     homeTm, awayTm,
     homeTurnover, awayTurnover,
@@ -184,7 +192,7 @@ export const buildGoalkeeperMap = (
     gk.total++;
     gk[bucketKey]++;
 
-    // goalZone may be a quadrant or a meta-region (post/out/long_range).
+    // goalZone may be a quadrant or a meta-region (post/out).
     // Only aggregate into the 3x3 grid if it's an actual quadrant.
     if (e.goalZone && GOAL_QUADRANT_ORDER.includes(e.goalZone as GoalQuadrantId)) {
       const q = e.goalZone as GoalQuadrantId;

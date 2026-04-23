@@ -18,7 +18,7 @@ export interface DbEventRow {
   type: EventType;
   zone: string | null;
   quadrant: number | null;        // legacy numeric column (0..8)
-  goal_section: string | null;    // new string column (tl/tc/.../post/out/long_range)
+  goal_section: string | null;    // new string column (tl/tc/.../post/out)
   situation: string | null;
   throw_type: string | null;
   shooter_name: string | null;

@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { CourtView } from '@/components/handball/court-view';
 import { GoalGrid } from '@/components/handball/goal-grid';
-import { Badge } from '@/components/ui/badge';
 import { computeScore } from '@/domain/events';
 import {
   EMPTY_DRAFT,
@@ -12,7 +11,6 @@ import {
   splitRoster,
   type EventDraft,
 } from '@/domain/live';
-import { EVENT_TYPES } from '@/domain/constants';
 import type {
   CourtZoneId,
   EventType,
@@ -29,16 +27,19 @@ import { EventTimeline } from './event-timeline';
 
 type Mode = 'quick' | 'full';
 
-// Context for an in-progress player picker (shooter → maybe GK → commit).
+// An in-progress shot that's waiting for player(s) to be tagged.
+//
+// For all shots we ask for the shooter. For shots that reached the goal
+// and we *have* our own roster, we also ask for our own goalkeeper when
+// it was our team that defended (i.e. the rival took the shot). We never
+// ask for the rival goalkeeper — most users don't know those names.
 interface PendingShot {
   type: 'goal' | 'miss' | 'saved' | 'post';
   draft: EventDraft;
-  // Step of the picker flow: pick shooter first, then (for some shots) GK.
   step: 'shooter' | 'goalkeeper';
   shooterPicked?: PersonRef | null;
 }
 
-// Context for a non-shot event that needs a player (sanction, turnover).
 interface PendingTagged {
   type: Exclude<EventType, 'goal' | 'miss' | 'saved' | 'post' | 'timeout' | 'half_time'>;
   team: Team;
@@ -64,7 +65,7 @@ export const LiveMatchPage = () => {
   const [pendingShot, setPendingShot] = useState<PendingShot | null>(null);
   const [pendingTagged, setPendingTagged] = useState<PendingTagged | null>(null);
 
-  // Bail out if no live match exists (e.g. user navigated directly)
+  // Early exit: no live match active.
   if (status !== 'live' || !match.home) {
     return (
       <div className="space-y-4">
@@ -84,22 +85,19 @@ export const LiveMatchPage = () => {
 
   const score = computeScore(events);
 
-  // When the attacker changes, reset the draft so zones don't carry over.
   const setAttackerAndReset = (t: Team) => {
     setAttacker(t);
     setDraft({ ...EMPTY_DRAFT, team: t });
   };
 
-  // Handlers for the zone selectors. Keep draft.team in sync with current attacker.
   const handleGoalZone = (z: GoalZoneId | null) =>
     setDraft((d) => ({ ...d, team: attacker, goalZone: z }));
 
   const handleCourtZone = (z: CourtZoneId | null) =>
     setDraft((d) => ({ ...d, team: attacker, courtZone: z }));
 
-  // ─── Main CTA: commit a shot ─────────────────────────────────────────
+  // ─── Shot CTAs: pedido uniforme del tirador para gol/atajada/errado/palo ──
   const handleShotCta = (type: 'goal' | 'miss' | 'saved' | 'post') => {
-    // In quick mode, skip the picker and commit immediately.
     if (mode === 'quick') {
       addEvent(buildEvent({
         type,
@@ -110,8 +108,6 @@ export const LiveMatchPage = () => {
       setDraft({ ...EMPTY_DRAFT, team: attacker });
       return;
     }
-
-    // In full mode, open the shooter picker.
     setPendingShot({
       type,
       draft: { ...draft, team: attacker },
@@ -119,11 +115,10 @@ export const LiveMatchPage = () => {
     });
   };
 
-  // ─── Non-shot CTAs ───────────────────────────────────────────────────
+  // ─── Non-shot CTAs (turnover, exclusion, cards, timeouts) ────────────
   const handleNonShotCta = (type: EventType, team: Team) => {
     const kind = rosterKindFor(type);
     if (kind === 'none' || mode === 'quick') {
-      // Commit right away
       addEvent(buildEvent({
         type,
         draft: { ...EMPTY_DRAFT, team },
@@ -132,24 +127,30 @@ export const LiveMatchPage = () => {
       }));
       return;
     }
-    // Open picker for the involved player
     setPendingTagged({
       type: type as PendingTagged['type'],
       team,
     });
   };
 
-  // ─── Pending shot flow ───────────────────────────────────────────────
+  // ─── Shot flow — shooter step ────────────────────────────────────────
   //
-  // Step 1: pick shooter (from attacker's roster, field players only).
-  // Step 2 (only for goal/saved): pick GK from opposing team's roster.
-  //         For miss/post we skip GK since there was no save attempt.
+  // After picking the shooter, we may or may not ask for a goalkeeper.
+  // Rule: only ask when the GK we'd tag belongs to a roster we have loaded.
+  // We only have "our" team's roster loaded, so:
+  //  - If the rival attacked and we defended → the GK is ours → ask.
+  //  - If we attacked → the GK is the rival's → never ask, auto-finish.
   const handleShotShooterPicked = (shooter: PersonRef | null) => {
     if (!pendingShot) return;
     const { type, draft: d } = pendingShot;
-    const needsGK = type === 'goal' || type === 'saved';
 
-    if (!needsGK) {
+    const reachedGoal = type === 'goal' || type === 'saved';
+    // The GK defending our attack is the rival's. The GK defending
+    // their attack is ours. We never ask about the rival GK.
+    const gkIsOurs = d.team === 'away';   // rival attacked → our GK involved
+    const needsGKStep = reachedGoal && gkIsOurs;
+
+    if (!needsGKStep) {
       addEvent(buildEvent({
         type,
         draft: { ...d, shooter },
@@ -176,18 +177,15 @@ export const LiveMatchPage = () => {
     setDraft({ ...EMPTY_DRAFT, team: attacker });
   };
 
-  // ─── Pending non-shot flow ──────────────────────────────────────────
   const handleTaggedPicked = (p: PersonRef | null) => {
     if (!pendingTagged) return;
     const { type, team } = pendingTagged;
     const kind = rosterKindFor(type);
-
     addEvent(buildEvent({
       type,
       draft: {
         ...EMPTY_DRAFT,
         team,
-        // Store under the right field based on the event kind.
         shooter: kind === 'possession' ? p : null,
       },
       clock,
@@ -197,15 +195,15 @@ export const LiveMatchPage = () => {
     setPendingTagged(null);
   };
 
-  // ─── Roster for the current picker step ─────────────────────────────
+  // ─── Picker context: resolves roster + title for the current step ───
   const pickerContext = useMemo(() => {
     if (pendingShot) {
       const { step, draft: d } = pendingShot;
-      const { type } = pendingShot;
-      // Shooter comes from attacker's team roster (field players only).
-      // GK comes from the OPPOSING team's roster (GKs only).
       if (step === 'shooter') {
-        const teamObj = teams.find((t) => t.name === (d.team === 'home' ? match.home : match.away));
+        // Shooter comes from the attacking team's field players.
+        const teamObj = teams.find(
+          (t) => t.name === (d.team === 'home' ? match.home : match.away),
+        );
         const players = teamObj?.players ?? [];
         const { fieldPlayers } = splitRoster(players);
         return {
@@ -215,29 +213,28 @@ export const LiveMatchPage = () => {
           teamColor: d.team === 'home' ? match.homeColor : match.awayColor,
           teamName: d.team === 'home' ? match.home : match.away,
           onPick: handleShotShooterPicked,
-          title: `${EVENT_TYPES[type].label} · ¿Quién tiró?`,
         };
       }
-      // step === 'goalkeeper' → opposing team
-      const oppName = d.team === 'home' ? match.away : match.home;
-      const oppColor = d.team === 'home' ? match.awayColor : match.homeColor;
-      const teamObj = teams.find((t) => t.name === oppName);
+      // step === 'goalkeeper' — only reached when the rival attacked, so
+      // we're asking for OUR goalkeeper (the home roster).
+      const teamObj = teams.find((t) => t.name === match.home);
       const players = teamObj?.players ?? [];
       const { goalkeepers } = splitRoster(players);
       return {
         open: true,
         kind: 'goalkeeper' as PickerKind,
         players: goalkeepers,
-        teamColor: oppColor,
-        teamName: oppName,
+        teamColor: match.homeColor,
+        teamName: match.home,
         onPick: handleShotGkPicked,
-        title: '¿Qué arquero?',
       };
     }
 
     if (pendingTagged) {
       const { team } = pendingTagged;
-      const teamObj = teams.find((t) => t.name === (team === 'home' ? match.home : match.away));
+      const teamObj = teams.find(
+        (t) => t.name === (team === 'home' ? match.home : match.away),
+      );
       const players = teamObj?.players ?? [];
       return {
         open: true,
@@ -246,7 +243,6 @@ export const LiveMatchPage = () => {
         teamColor: team === 'home' ? match.homeColor : match.awayColor,
         teamName: team === 'home' ? match.home : match.away,
         onPick: handleTaggedPicked,
-        title: '',
       };
     }
 
@@ -254,7 +250,6 @@ export const LiveMatchPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingShot, pendingTagged, teams, match]);
 
-  // ─── Finish match ──────────────────────────────────────────────────
   const handleFinish = () => {
     if (window.confirm('¿Finalizar el partido y guardarlo?')) {
       finishLive();
@@ -268,7 +263,8 @@ export const LiveMatchPage = () => {
     }
   };
 
-  // ─── Render ────────────────────────────────────────────────────────
+  const longRangeActive = draft.courtZone === 'long_range';
+
   return (
     <div className="space-y-3 pb-4">
       <Scoreboard
@@ -282,7 +278,14 @@ export const LiveMatchPage = () => {
         onClockChange={setClock}
       />
 
-      {/* Mode toggle + attacker toggle */}
+      {/* Stats right under the scoreboard — was at the bottom before, moved per feedback */}
+      <LiveStats
+        events={events}
+        homeColor={match.homeColor}
+        awayColor={match.awayColor}
+      />
+
+      {/* Mode + attacker toggles */}
       <div className="grid grid-cols-2 gap-2">
         <div className="rounded-lg border border-border bg-surface p-1 flex">
           {(['full', 'quick'] as const).map((m) => (
@@ -322,26 +325,17 @@ export const LiveMatchPage = () => {
         </div>
       </div>
 
-      <div className="text-[10px] text-muted-fg">
-        {mode === 'full'
-          ? 'Modo completo: taggeá arco → cancha → jugador por cada tiro.'
-          : 'Modo rápido: un toque para registrar sin tagueo.'}
-      </div>
-
       {/* Step 1: arco */}
       <section>
         <div className="flex items-center gap-2 mb-1.5">
           <StepNumber n={1} />
           <h3 className="text-xs font-medium text-fg">¿A qué cuadrante fue?</h3>
-          {draft.goalZone && (
-            <Badge tone="primary">{draft.goalZone}</Badge>
-          )}
         </div>
         <GoalGrid
           selected={draft.goalZone}
           onSelect={handleGoalZone}
         />
-        <div className="grid grid-cols-3 gap-1.5 mt-2">
+        <div className="grid grid-cols-2 gap-1.5 mt-2">
           <GoalExtraButton
             label="Fuera"
             active={draft.goalZone === 'out'}
@@ -354,12 +348,6 @@ export const LiveMatchPage = () => {
             tone="warning"
             onClick={() => handleGoalZone(draft.goalZone === 'post' ? null : 'post')}
           />
-          <GoalExtraButton
-            label="Arco-Arco"
-            active={draft.goalZone === 'long_range'}
-            tone="card"
-            onClick={() => handleGoalZone(draft.goalZone === 'long_range' ? null : 'long_range')}
-          />
         </div>
       </section>
 
@@ -368,14 +356,26 @@ export const LiveMatchPage = () => {
         <div className="flex items-center gap-2 mb-1.5">
           <StepNumber n={2} />
           <h3 className="text-xs font-medium text-fg">¿Desde dónde tiró?</h3>
-          {draft.courtZone && (
-            <Badge tone="primary">{draft.courtZone}</Badge>
-          )}
         </div>
         <CourtView
-          selectedZone={draft.courtZone}
+          selectedZone={draft.courtZone === 'long_range' ? null : draft.courtZone}
           onZoneSelect={handleCourtZone}
         />
+        {/* Arco a Arco — special long-range shot, sits outside the court SVG */}
+        <button
+          type="button"
+          onClick={() =>
+            handleCourtZone(longRangeActive ? null : 'long_range')
+          }
+          className={cn(
+            'mt-2 w-full h-10 rounded-md border text-xs font-medium transition-colors duration-fast touch-target',
+            longRangeActive
+              ? 'border-card/60 bg-card/20 text-card'
+              : 'border-card/30 bg-card/5 text-card/80 hover:bg-card/10',
+          )}
+        >
+          Arco a Arco
+        </button>
       </section>
 
       {/* Shot CTAs */}
@@ -465,14 +465,7 @@ export const LiveMatchPage = () => {
         </Button>
       </section>
 
-      {/* Live stats */}
-      <LiveStats
-        events={events}
-        homeColor={match.homeColor}
-        awayColor={match.awayColor}
-      />
-
-      {/* Timeline */}
+      {/* Timeline of events — stays at the bottom */}
       <EventTimeline
         events={events}
         homeColor={match.homeColor}
@@ -480,25 +473,15 @@ export const LiveMatchPage = () => {
         onDelete={removeEvent}
       />
 
-      {/* End-of-match actions */}
       <section className="flex gap-2 pt-2">
-        <Button
-          variant="danger"
-          size="sm"
-          onClick={handleDiscard}
-          className="flex-1"
-        >
+        <Button variant="danger" size="sm" onClick={handleDiscard} className="flex-1">
           Descartar
         </Button>
-        <Button
-          onClick={handleFinish}
-          className="flex-[2]"
-        >
+        <Button onClick={handleFinish} className="flex-[2]">
           Finalizar partido
         </Button>
       </section>
 
-      {/* Player pickers */}
       {pickerContext && (
         <PlayerPicker
           open={pickerContext.open}
@@ -518,7 +501,6 @@ export const LiveMatchPage = () => {
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────
-
 const StepNumber = ({ n }: { n: number }) => (
   <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary text-primary-fg text-[11px] font-semibold">
     {n}
@@ -533,14 +515,13 @@ const GoalExtraButton = ({
 }: {
   label: string;
   active: boolean;
-  tone: 'neutral' | 'warning' | 'card';
+  tone: 'neutral' | 'warning';
   onClick: () => void;
 }) => {
   const base = 'h-9 text-xs font-medium rounded-md border transition-colors duration-fast touch-target';
   const tones = {
     neutral: active ? 'border-fg/40 bg-surface-2 text-fg' : 'border-border bg-surface-2/50 text-muted-fg hover:text-fg',
     warning: active ? 'border-warning/60 bg-warning/20 text-warning' : 'border-warning/30 bg-warning/5 text-warning/80 hover:bg-warning/10',
-    card:    active ? 'border-card/60 bg-card/20 text-card' : 'border-card/30 bg-card/5 text-card/80 hover:bg-card/10',
   };
   return (
     <button type="button" onClick={onClick} className={cn(base, tones[tone])}>
