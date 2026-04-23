@@ -24,19 +24,16 @@ import { Scoreboard } from './scoreboard';
 import { PlayerPicker, type PickerKind } from './player-picker';
 import { LiveStats } from './live-stats';
 import { EventTimeline } from './event-timeline';
+import { ShotOutcomeDialog, type ShotOutcome } from './shot-outcome-dialog';
 
 type Mode = 'quick' | 'full';
 
-// An in-progress shot that's waiting for player(s) to be tagged.
-//
-// For all shots we ask for the shooter. For shots that reached the goal
-// and we *have* our own roster, we also ask for our own goalkeeper when
-// it was our team that defended (i.e. the rival took the shot). We never
-// ask for the rival goalkeeper — most users don't know those names.
+// Shot flow state: once the user taps a goal quadrant, we enter the
+// "pending shot" state. Steps: outcome → shooter → (maybe) goalkeeper.
 interface PendingShot {
-  type: 'goal' | 'miss' | 'saved' | 'post';
   draft: EventDraft;
-  step: 'shooter' | 'goalkeeper';
+  step: 'outcome' | 'shooter' | 'goalkeeper';
+  outcome?: ShotOutcome;
   shooterPicked?: PersonRef | null;
 }
 
@@ -65,7 +62,6 @@ export const LiveMatchPage = () => {
   const [pendingShot, setPendingShot] = useState<PendingShot | null>(null);
   const [pendingTagged, setPendingTagged] = useState<PendingTagged | null>(null);
 
-  // Early exit: no live match active.
   if (status !== 'live' || !match.home) {
     return (
       <div className="space-y-4">
@@ -90,32 +86,79 @@ export const LiveMatchPage = () => {
     setDraft({ ...EMPTY_DRAFT, team: t });
   };
 
-  const handleGoalZone = (z: GoalZoneId | null) =>
-    setDraft((d) => ({ ...d, team: attacker, goalZone: z }));
-
   const handleCourtZone = (z: CourtZoneId | null) =>
     setDraft((d) => ({ ...d, team: attacker, courtZone: z }));
 
-  // ─── Shot CTAs: pedido uniforme del tirador para gol/atajada/errado/palo ──
-  const handleShotCta = (type: 'goal' | 'miss' | 'saved' | 'post') => {
-    if (mode === 'quick') {
+  /**
+   * Core UX decision: tapping a goal quadrant is the trigger to OPEN THE
+   * OUTCOME POPUP, not a plain selection. This removes the need for
+   * separate "Gol/Atajada" buttons because tapping a quadrant already
+   * implies the shot hit that specific location.
+   *
+   * If the same quadrant is tapped twice, we treat the second tap as a
+   * deselect — toggle behavior preserved for accidental taps.
+   */
+  const handleGoalZoneTap = (z: GoalZoneId | null) => {
+    // Toggle off if same zone re-tapped while a popup is still closed
+    if (z === null || draft.goalZone === z) {
+      setDraft((d) => ({ ...d, team: attacker, goalZone: null }));
+      return;
+    }
+
+    const nextDraft: EventDraft = { ...draft, team: attacker, goalZone: z };
+    setDraft(nextDraft);
+
+    // In quick mode we don't open the outcome picker — we can't know
+    // what happened without asking. Quick mode only applies to
+    // non-shot events (cards, exclusions, etc.) from the bottom row.
+    if (mode === 'quick') return;
+
+    // Open the outcome dialog for the shot
+    setPendingShot({ draft: nextDraft, step: 'outcome' });
+  };
+
+  const handleShotOutcomePicked = (outcome: ShotOutcome) => {
+    if (!pendingShot) return;
+    setPendingShot({ ...pendingShot, step: 'shooter', outcome });
+  };
+
+  const handleShotShooterPicked = (shooter: PersonRef | null) => {
+    if (!pendingShot || !pendingShot.outcome) return;
+    const { draft: d, outcome } = pendingShot;
+
+    const reachedGoal = outcome === 'goal' || outcome === 'saved';
+    // We only know OUR roster — so we only ask for the GK when it's ours.
+    // i.e. when the rival attacked us.
+    const gkIsOurs = d.team === 'away';
+    const needsGKStep = reachedGoal && gkIsOurs;
+
+    if (!needsGKStep) {
       addEvent(buildEvent({
-        type,
-        draft: { ...draft, team: attacker },
+        type: outcome,
+        draft: { ...d, shooter },
         clock,
-        quickMode: true,
+        quickMode: false,
       }));
+      setPendingShot(null);
       setDraft({ ...EMPTY_DRAFT, team: attacker });
       return;
     }
-    setPendingShot({
-      type,
-      draft: { ...draft, team: attacker },
-      step: 'shooter',
-    });
+    setPendingShot({ ...pendingShot, step: 'goalkeeper', shooterPicked: shooter });
   };
 
-  // ─── Non-shot CTAs (turnover, exclusion, cards, timeouts) ────────────
+  const handleShotGkPicked = (gk: PersonRef | null) => {
+    if (!pendingShot || !pendingShot.outcome) return;
+    const { draft: d, outcome, shooterPicked } = pendingShot;
+    addEvent(buildEvent({
+      type: outcome,
+      draft: { ...d, shooter: shooterPicked ?? null, goalkeeper: gk },
+      clock,
+      quickMode: false,
+    }));
+    setPendingShot(null);
+    setDraft({ ...EMPTY_DRAFT, team: attacker });
+  };
+
   const handleNonShotCta = (type: EventType, team: Team) => {
     const kind = rosterKindFor(type);
     if (kind === 'none' || mode === 'quick') {
@@ -131,50 +174,6 @@ export const LiveMatchPage = () => {
       type: type as PendingTagged['type'],
       team,
     });
-  };
-
-  // ─── Shot flow — shooter step ────────────────────────────────────────
-  //
-  // After picking the shooter, we may or may not ask for a goalkeeper.
-  // Rule: only ask when the GK we'd tag belongs to a roster we have loaded.
-  // We only have "our" team's roster loaded, so:
-  //  - If the rival attacked and we defended → the GK is ours → ask.
-  //  - If we attacked → the GK is the rival's → never ask, auto-finish.
-  const handleShotShooterPicked = (shooter: PersonRef | null) => {
-    if (!pendingShot) return;
-    const { type, draft: d } = pendingShot;
-
-    const reachedGoal = type === 'goal' || type === 'saved';
-    // The GK defending our attack is the rival's. The GK defending
-    // their attack is ours. We never ask about the rival GK.
-    const gkIsOurs = d.team === 'away';   // rival attacked → our GK involved
-    const needsGKStep = reachedGoal && gkIsOurs;
-
-    if (!needsGKStep) {
-      addEvent(buildEvent({
-        type,
-        draft: { ...d, shooter },
-        clock,
-        quickMode: false,
-      }));
-      setPendingShot(null);
-      setDraft({ ...EMPTY_DRAFT, team: attacker });
-      return;
-    }
-    setPendingShot({ ...pendingShot, step: 'goalkeeper', shooterPicked: shooter });
-  };
-
-  const handleShotGkPicked = (gk: PersonRef | null) => {
-    if (!pendingShot) return;
-    const { type, draft: d, shooterPicked } = pendingShot;
-    addEvent(buildEvent({
-      type,
-      draft: { ...d, shooter: shooterPicked ?? null, goalkeeper: gk },
-      clock,
-      quickMode: false,
-    }));
-    setPendingShot(null);
-    setDraft({ ...EMPTY_DRAFT, team: attacker });
   };
 
   const handleTaggedPicked = (p: PersonRef | null) => {
@@ -195,28 +194,27 @@ export const LiveMatchPage = () => {
     setPendingTagged(null);
   };
 
-  // ─── Picker context: resolves roster + title for the current step ───
+  // ─── Picker context: resolves roster & title for the current step ───
   const pickerContext = useMemo(() => {
-    if (pendingShot) {
-      const { step, draft: d } = pendingShot;
-      if (step === 'shooter') {
-        // Shooter comes from the attacking team's field players.
-        const teamObj = teams.find(
-          (t) => t.name === (d.team === 'home' ? match.home : match.away),
-        );
-        const players = teamObj?.players ?? [];
-        const { fieldPlayers } = splitRoster(players);
-        return {
-          open: true,
-          kind: 'shooter' as PickerKind,
-          players: fieldPlayers,
-          teamColor: d.team === 'home' ? match.homeColor : match.awayColor,
-          teamName: d.team === 'home' ? match.home : match.away,
-          onPick: handleShotShooterPicked,
-        };
-      }
-      // step === 'goalkeeper' — only reached when the rival attacked, so
-      // we're asking for OUR goalkeeper (the home roster).
+    if (pendingShot && pendingShot.step === 'shooter') {
+      const { draft: d } = pendingShot;
+      const teamObj = teams.find(
+        (t) => t.name === (d.team === 'home' ? match.home : match.away),
+      );
+      const players = teamObj?.players ?? [];
+      const { fieldPlayers } = splitRoster(players);
+      return {
+        open: true,
+        kind: 'shooter' as PickerKind,
+        players: fieldPlayers,
+        teamColor: d.team === 'home' ? match.homeColor : match.awayColor,
+        teamName: d.team === 'home' ? match.home : match.away,
+        onPick: handleShotShooterPicked,
+      };
+    }
+
+    if (pendingShot && pendingShot.step === 'goalkeeper') {
+      // Only ever reached when the rival attacked — we're asking for OUR GK
       const teamObj = teams.find((t) => t.name === match.home);
       const players = teamObj?.players ?? [];
       const { goalkeepers } = splitRoster(players);
@@ -278,14 +276,14 @@ export const LiveMatchPage = () => {
         onClockChange={setClock}
       />
 
-      {/* Stats right under the scoreboard — was at the bottom before, moved per feedback */}
       <LiveStats
         events={events}
+        home={match.home}
+        away={match.away}
         homeColor={match.homeColor}
         awayColor={match.awayColor}
       />
 
-      {/* Mode + attacker toggles */}
       <div className="grid grid-cols-2 gap-2">
         <div className="rounded-lg border border-border bg-surface p-1 flex">
           {(['full', 'quick'] as const).map((m) => (
@@ -325,48 +323,19 @@ export const LiveMatchPage = () => {
         </div>
       </div>
 
-      {/* Step 1: arco */}
+      {/* Step 1: cancha */}
       <section>
         <div className="flex items-center gap-2 mb-1.5">
           <StepNumber n={1} />
-          <h3 className="text-xs font-medium text-fg">¿A qué cuadrante fue?</h3>
-        </div>
-        <GoalGrid
-          selected={draft.goalZone}
-          onSelect={handleGoalZone}
-        />
-        <div className="grid grid-cols-2 gap-1.5 mt-2">
-          <GoalExtraButton
-            label="Fuera"
-            active={draft.goalZone === 'out'}
-            tone="neutral"
-            onClick={() => handleGoalZone(draft.goalZone === 'out' ? null : 'out')}
-          />
-          <GoalExtraButton
-            label="Palo"
-            active={draft.goalZone === 'post'}
-            tone="warning"
-            onClick={() => handleGoalZone(draft.goalZone === 'post' ? null : 'post')}
-          />
-        </div>
-      </section>
-
-      {/* Step 2: cancha */}
-      <section>
-        <div className="flex items-center gap-2 mb-1.5">
-          <StepNumber n={2} />
           <h3 className="text-xs font-medium text-fg">¿Desde dónde tiró?</h3>
         </div>
         <CourtView
           selectedZone={draft.courtZone === 'long_range' ? null : draft.courtZone}
           onZoneSelect={handleCourtZone}
         />
-        {/* Arco a Arco — special long-range shot, sits outside the court SVG */}
         <button
           type="button"
-          onClick={() =>
-            handleCourtZone(longRangeActive ? null : 'long_range')
-          }
+          onClick={() => handleCourtZone(longRangeActive ? null : 'long_range')}
           className={cn(
             'mt-2 w-full h-10 rounded-md border text-xs font-medium transition-colors duration-fast touch-target',
             longRangeActive
@@ -378,94 +347,135 @@ export const LiveMatchPage = () => {
         </button>
       </section>
 
-      {/* Shot CTAs */}
-      <section className="grid grid-cols-2 gap-2">
-        <Button
-          variant="success"
-          onClick={() => handleShotCta('goal')}
-          className="h-12 text-base"
-        >
-          Gol
-        </Button>
-        <Button
-          onClick={() => handleShotCta('saved')}
-          className="h-12 text-base bg-save hover:bg-save/90"
-        >
-          Atajada
-        </Button>
+      {/* Step 2: arco — tapping a quadrant triggers the outcome popup */}
+      <section>
+        <div className="flex items-center gap-2 mb-1.5">
+          <StepNumber n={2} />
+          <h3 className="text-xs font-medium text-fg">Tocá el cuadrante donde fue el tiro</h3>
+        </div>
+        <GoalGrid
+          selected={draft.goalZone}
+          onSelect={handleGoalZoneTap}
+        />
+        <div className="grid grid-cols-2 gap-1.5 mt-2">
+          <OutcomeExtraButton
+            label="Fuera"
+            active={false}
+            tone="neutral"
+            onClick={() => {
+              // "Fuera" is a shortcut for a missed shot — commit directly
+              if (mode === 'quick') {
+                addEvent(buildEvent({
+                  type: 'miss',
+                  draft: { ...draft, team: attacker, goalZone: 'out' },
+                  clock,
+                  quickMode: true,
+                }));
+                setDraft({ ...EMPTY_DRAFT, team: attacker });
+                return;
+              }
+              const next: EventDraft = { ...draft, team: attacker, goalZone: 'out' };
+              setDraft(next);
+              setPendingShot({ draft: next, step: 'shooter', outcome: 'miss' });
+            }}
+          />
+          <OutcomeExtraButton
+            label="Palo"
+            active={false}
+            tone="warning"
+            onClick={() => {
+              if (mode === 'quick') {
+                addEvent(buildEvent({
+                  type: 'post',
+                  draft: { ...draft, team: attacker, goalZone: 'post' },
+                  clock,
+                  quickMode: true,
+                }));
+                setDraft({ ...EMPTY_DRAFT, team: attacker });
+                return;
+              }
+              const next: EventDraft = { ...draft, team: attacker, goalZone: 'post' };
+              setDraft(next);
+              setPendingShot({ draft: next, step: 'shooter', outcome: 'post' });
+            }}
+          />
+        </div>
       </section>
 
-      <section className="grid grid-cols-4 gap-1.5">
-        <Button
-          size="sm"
-          variant="secondary"
-          onClick={() => handleShotCta('miss')}
-          className="h-10 text-xs"
-        >
-          Errado
-        </Button>
-        <Button
-          size="sm"
-          variant="secondary"
-          onClick={() => handleShotCta('post')}
-          className="h-10 text-xs text-warning"
-        >
-          Palo
-        </Button>
-        <Button
-          size="sm"
-          variant="secondary"
-          onClick={() => handleNonShotCta('turnover', attacker)}
-          className="h-10 text-xs"
-        >
-          Pérdida
-        </Button>
-        <Button
-          size="sm"
-          variant="secondary"
-          onClick={() => handleNonShotCta('exclusion', attacker)}
-          className="h-10 text-xs text-exclusion"
-        >
-          2'
-        </Button>
+      {/* Non-shot events (no big shot CTAs anymore) */}
+      <section>
+        <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-fg mb-1.5">
+          Otros eventos
+        </div>
+        <div className="grid grid-cols-4 gap-1.5">
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => handleNonShotCta('turnover', attacker)}
+            className="h-10 text-xs"
+          >
+            Pérdida
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => handleNonShotCta('exclusion', attacker)}
+            className="h-10 text-xs text-exclusion"
+          >
+            2'
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => handleNonShotCta('timeout', attacker)}
+            className="h-10 text-xs"
+          >
+            T. muerto
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              addEvent(buildEvent({
+                type: 'half_time',
+                draft: { ...EMPTY_DRAFT, team: attacker },
+                clock,
+                quickMode: false,
+              }));
+            }}
+            className="h-10 text-xs"
+          >
+            Descanso
+          </Button>
+        </div>
+        <div className="grid grid-cols-3 gap-1.5 mt-1.5">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => handleNonShotCta('yellow_card', attacker)}
+            className="h-9 text-xs text-warning"
+          >
+            Amarilla
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => handleNonShotCta('blue_card', attacker)}
+            className="h-9 text-xs text-primary"
+          >
+            Azul
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => handleNonShotCta('red_card', attacker)}
+            className="h-9 text-xs text-danger"
+          >
+            Roja
+          </Button>
+        </div>
       </section>
 
-      <section className="grid grid-cols-4 gap-1.5">
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => handleNonShotCta('yellow_card', attacker)}
-          className="h-9 text-xs text-warning"
-        >
-          Amarilla
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => handleNonShotCta('blue_card', attacker)}
-          className="h-9 text-xs text-primary"
-        >
-          Azul
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => handleNonShotCta('red_card', attacker)}
-          className="h-9 text-xs text-danger"
-        >
-          Roja
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => handleNonShotCta('timeout', attacker)}
-          className="h-9 text-xs"
-        >
-          T. muerto
-        </Button>
-      </section>
-
-      {/* Timeline of events — stays at the bottom */}
       <EventTimeline
         events={events}
         homeColor={match.homeColor}
@@ -482,12 +492,25 @@ export const LiveMatchPage = () => {
         </Button>
       </section>
 
+      {/* Dialogs */}
+      <ShotOutcomeDialog
+        open={!!pendingShot && pendingShot.step === 'outcome'}
+        onClose={() => {
+          setPendingShot(null);
+          setDraft((d) => ({ ...d, goalZone: null }));
+        }}
+        goalZone={draft.goalZone}
+        courtZone={draft.courtZone}
+        onPick={handleShotOutcomePicked}
+      />
+
       {pickerContext && (
         <PlayerPicker
           open={pickerContext.open}
           onClose={() => {
             setPendingShot(null);
             setPendingTagged(null);
+            setDraft((d) => ({ ...d, goalZone: null }));
           }}
           onPick={pickerContext.onPick}
           players={pickerContext.players}
@@ -500,14 +523,13 @@ export const LiveMatchPage = () => {
   );
 };
 
-// ─── Helpers ─────────────────────────────────────────────────────────
 const StepNumber = ({ n }: { n: number }) => (
   <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary text-primary-fg text-[11px] font-semibold">
     {n}
   </span>
 );
 
-const GoalExtraButton = ({
+const OutcomeExtraButton = ({
   label,
   active,
   tone,
@@ -520,8 +542,12 @@ const GoalExtraButton = ({
 }) => {
   const base = 'h-9 text-xs font-medium rounded-md border transition-colors duration-fast touch-target';
   const tones = {
-    neutral: active ? 'border-fg/40 bg-surface-2 text-fg' : 'border-border bg-surface-2/50 text-muted-fg hover:text-fg',
-    warning: active ? 'border-warning/60 bg-warning/20 text-warning' : 'border-warning/30 bg-warning/5 text-warning/80 hover:bg-warning/10',
+    neutral: active
+      ? 'border-fg/40 bg-surface-2 text-fg'
+      : 'border-border bg-surface-2/50 text-muted-fg hover:text-fg',
+    warning: active
+      ? 'border-warning/60 bg-warning/20 text-warning'
+      : 'border-warning/30 bg-warning/5 text-warning/80 hover:bg-warning/10',
   };
   return (
     <button type="button" onClick={onClick} className={cn(base, tones[tone])}>
