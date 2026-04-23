@@ -10,6 +10,7 @@ import {
   activeChips,
   applyFilter,
   isEmptyFilter,
+  perGoalkeeper,
   perQuadrant,
   perShooter,
   perZone,
@@ -71,6 +72,7 @@ export const MatchAnalysisPage = () => {
   const zoneCounts = perZone(events, filter);
   const quadCounts = perQuadrant(events, filter);
   const shooters = perShooter(events, filter);
+  const goalkeepers = perGoalkeeper(events, filter);
 
   // Resolve labels for active filter chips (domain is label-free)
   const labels: FilterLabels = {
@@ -256,13 +258,13 @@ export const MatchAnalysisPage = () => {
       <section>
         <div className="flex items-center justify-between mb-1.5">
           <h3 className="text-xs font-medium text-fg">👥 Jugadores</h3>
-          <span className="text-[10px] text-muted-fg">
-            {shooters.length} {shooters.length === 1 ? 'tirador' : 'tiradores'}
-          </span>
         </div>
         <PlayersPanel
           shooters={shooters}
+          goalkeepers={goalkeepers}
           selectedKey={filter.shooterKey}
+          home={match.home}
+          away={match.away}
           homeColor={match.homeColor}
           awayColor={match.awayColor}
           onToggle={(key) => setFilter((f) => toggleShooter(f, key))}

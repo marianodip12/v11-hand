@@ -145,47 +145,6 @@ export const LiveMatchPage = () => {
 
   const handleShotOutcomePicked = (outcome: ShotOutcome) => {
     if (!pendingShot) return;
-    const { draft: d } = pendingShot;
-    const teamObj = teams.find(
-      (t) => t.name === (d.team === 'home' ? match.home : match.away),
-    );
-    const hasRoster = (teamObj?.players.length ?? 0) > 0;
-    // If the attacking team has no roster (typical for rival), skip the
-    // picker entirely and ask only for a jersey number via a light prompt.
-    if (!hasRoster) {
-      const adhoc = adhocPlayersFor(events, d.team);
-      const quickPrompt = window.prompt(
-        `Número del tirador (${d.team === 'home' ? match.home : match.away})` +
-          (adhoc.length > 0 ? `\nYa usados: ${adhoc.map((p) => '#' + p.number).join(', ')}` : ''),
-        '',
-      );
-      if (quickPrompt === null) {
-        setPendingShot(null);
-        setDraft({ ...EMPTY_DRAFT, team: attacker });
-        return;
-      }
-      const trimmed = quickPrompt.trim();
-      let shooter: PersonRef | null = null;
-      if (trimmed !== '') {
-        const n = Number(trimmed);
-        if (Number.isFinite(n) && n >= 1 && n <= 99) {
-          const reused = adhoc.find((p) => p.number === n);
-          shooter = reused ?? { name: `#${n}`, number: n };
-        }
-      }
-      // Same GK logic as below, but we skip shooter dialog
-      const reachedGoal = outcome === 'goal' || outcome === 'saved';
-      const gkIsOurs = d.team === 'away';
-      const needsGKStep = reachedGoal && gkIsOurs;
-      if (!needsGKStep) {
-        addEvent(buildEvent({ type: outcome, draft: { ...d, shooter }, clock, quickMode: false }));
-        setPendingShot(null);
-        setDraft({ ...EMPTY_DRAFT, team: attacker });
-        return;
-      }
-      setPendingShot({ ...pendingShot, step: 'goalkeeper', outcome, shooterPicked: shooter });
-      return;
-    }
     setPendingShot({ ...pendingShot, step: 'shooter', outcome });
   };
 
@@ -206,44 +165,7 @@ export const LiveMatchPage = () => {
       return;
     }
 
-    // Ask for GK. Which roster depends on who attacked:
-    //  - rival attacked (d.team === 'away') → our GK (home roster)
-    //  - we attacked (d.team === 'home') → rival GK
-    const gkIsOurs = d.team === 'away';
-    const gkTeamName = gkIsOurs ? match.home : match.away;
-    const gkTeamObj = teams.find((t) => t.name === gkTeamName);
-    const gkHasRoster = (gkTeamObj?.players.length ?? 0) > 0;
-
-    // If the GK's team has no roster loaded, ask via prompt instead.
-    if (!gkHasRoster) {
-      const adhoc = adhocPlayersFor(events, gkIsOurs ? 'home' : 'away');
-      const quickPrompt = window.prompt(
-        `Número del arquero (${gkTeamName})` +
-          (adhoc.length > 0 ? `\nYa usados: ${adhoc.map((p) => '#' + p.number).join(', ')}` : ''),
-        '',
-      );
-      let gk: PersonRef | null = null;
-      if (quickPrompt !== null) {
-        const trimmed = quickPrompt.trim();
-        if (trimmed !== '') {
-          const n = Number(trimmed);
-          if (Number.isFinite(n) && n >= 1 && n <= 99) {
-            const reused = adhoc.find((p) => p.number === n);
-            gk = reused ?? { name: `#${n}`, number: n };
-          }
-        }
-      }
-      addEvent(buildEvent({
-        type: outcome,
-        draft: { ...d, shooter, goalkeeper: gk },
-        clock,
-        quickMode: false,
-      }));
-      setPendingShot(null);
-      setDraft({ ...EMPTY_DRAFT, team: attacker });
-      return;
-    }
-
+    // Always go through the PlayerPicker for GK — no native prompt.
     setPendingShot({ ...pendingShot, step: 'goalkeeper', shooterPicked: shooter });
   };
 

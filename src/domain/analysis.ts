@@ -169,13 +169,16 @@ export const perQuadrant = (
 // ─── Per-shooter summary ───────────────────────────────────────────────
 
 export interface ShooterSummary {
-  key: string;                   // stable identity
+  key: string;
   name: string;
   number: number;
   team: Team;
   shots: number;
   goals: number;
-  pct: number;
+  saved: number;     // shots by this player that the rival GK saved
+  miss: number;      // errados (including fuera)
+  post: number;      // palos
+  pct: number;       // goals / shots
 }
 
 export const perShooter = (
@@ -197,17 +200,77 @@ export const perShooter = (
         team: e.team,
         shots: 0,
         goals: 0,
+        saved: 0,
+        miss: 0,
+        post: 0,
         pct: 0,
       };
       acc.set(key, s);
     }
     s.shots++;
-    if (e.type === 'goal') s.goals++;
+    if (e.type === 'goal')       s.goals++;
+    else if (e.type === 'saved') s.saved++;
+    else if (e.type === 'miss')  s.miss++;
+    else if (e.type === 'post')  s.post++;
   }
   const arr = Array.from(acc.values());
   for (const s of arr) s.pct = s.shots === 0 ? 0 : Math.round((s.goals / s.shots) * 100);
-  // Sort: most shots first, then alphabetical
   arr.sort((a, b) => b.shots - a.shots || a.name.localeCompare(b.name));
+  return arr;
+};
+
+// ─── Per-goalkeeper summary ────────────────────────────────────────────
+
+export interface GoalkeeperSummary {
+  key: string;
+  name: string;
+  number: number;
+  team: Team;
+  faced: number;         // shots on target they faced (goal + saved)
+  saved: number;
+  conceded: number;
+  pct: number;           // saved / faced
+}
+
+const goalkeeperKeyOf = (e: HandballEvent): string | null =>
+  e.goalkeeper ? `${e.goalkeeper.number}#${e.goalkeeper.name}` : null;
+
+export const perGoalkeeper = (
+  events: HandballEvent[],
+  f: MatchFilter,
+): GoalkeeperSummary[] => {
+  // GKs are derived from shots that reached the goal (goal + saved).
+  // Filter by the rest of the filter but ignore shooterKey because the
+  // shooter being filtered refers to shooters, not goalkeepers.
+  const base = applyFilter(events, filterExcluding(f, 'shooterKey'));
+  const acc = new Map<string, GoalkeeperSummary>();
+  for (const e of base) {
+    if (e.type !== 'goal' && e.type !== 'saved') continue;
+    const key = goalkeeperKeyOf(e);
+    if (!key || !e.goalkeeper) continue;
+    // GK team is the opposite of the attacking team
+    const gkTeam: Team = e.team === 'home' ? 'away' : 'home';
+    let g = acc.get(key);
+    if (!g) {
+      g = {
+        key,
+        name: e.goalkeeper.name,
+        number: e.goalkeeper.number,
+        team: gkTeam,
+        faced: 0,
+        saved: 0,
+        conceded: 0,
+        pct: 0,
+      };
+      acc.set(key, g);
+    }
+    g.faced++;
+    if (e.type === 'saved') g.saved++;
+    else                    g.conceded++;
+  }
+  const arr = Array.from(acc.values());
+  for (const g of arr) g.pct = g.faced === 0 ? 0 : Math.round((g.saved / g.faced) * 100);
+  arr.sort((a, b) => b.faced - a.faced || a.name.localeCompare(b.name));
   return arr;
 };
 
