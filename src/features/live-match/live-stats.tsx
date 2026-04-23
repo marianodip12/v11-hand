@@ -46,34 +46,6 @@ export const LiveStats = ({ events, home, away, homeColor, awayColor }: LiveStat
     oppGKName:  isHome ? away           : home,
   };
 
-  // Comparative bars compare the focused team against the opposing team.
-  const bars = [
-    {
-      label: 'Goles',
-      mine: focused.goals,
-      theirs: isHome ? s.awayGoals : s.homeGoals,
-      tone: 'goal',
-    },
-    {
-      label: 'Tiros totales',
-      mine: focused.shots,
-      theirs: isHome ? s.awayShots : s.homeShots,
-      tone: 'neutral',
-    },
-    {
-      label: 'Exclusiones',
-      mine: focused.excl,
-      theirs: isHome ? s.awayExcl : s.homeExcl,
-      tone: 'exclusion',
-    },
-    {
-      label: 'Pérdidas',
-      mine: focused.turnovers,
-      theirs: isHome ? s.awayTurnover : s.homeTurnover,
-      tone: 'danger',
-    },
-  ] as const;
-
   return (
     <div className="rounded-lg border border-border bg-surface overflow-hidden">
       {/* Team focus tabs */}
@@ -137,26 +109,6 @@ export const LiveStats = ({ events, home, away, homeColor, awayColor }: LiveStat
             </span>
           </div>
         )}
-
-        {/* Comparative bars */}
-        <div>
-          <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-fg mb-2">
-            Comparativa
-          </div>
-          <div className="space-y-2">
-            {bars.map((b) => (
-              <CompareBar
-                key={b.label}
-                label={b.label}
-                mine={b.mine}
-                theirs={b.theirs}
-                myColor={focusColor}
-                theirColor={isHome ? awayColor : homeColor}
-                tone={b.tone}
-              />
-            ))}
-          </div>
-        </div>
       </div>
     </div>
   );
@@ -201,7 +153,7 @@ const StatTile = ({
 
 // ─── Compare bar ───────────────────────────────────────────────────────
 
-const CompareBar = ({
+export const CompareBar = ({
   label,
   mine,
   theirs,

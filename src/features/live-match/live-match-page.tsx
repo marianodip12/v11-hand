@@ -86,9 +86,6 @@ export const LiveMatchPage = () => {
     setDraft({ ...EMPTY_DRAFT, team: t });
   };
 
-  const handleCourtZone = (z: CourtZoneId | null) =>
-    setDraft((d) => ({ ...d, team: attacker, courtZone: z }));
-
   /**
    * Core UX decision: tapping a goal quadrant is the trigger to OPEN THE
    * OUTCOME POPUP, not a plain selection. This removes the need for
@@ -99,22 +96,32 @@ export const LiveMatchPage = () => {
    * deselect — toggle behavior preserved for accidental taps.
    */
   const handleGoalZoneTap = (z: GoalZoneId | null) => {
-    // Toggle off if same zone re-tapped while a popup is still closed
     if (z === null || draft.goalZone === z) {
       setDraft((d) => ({ ...d, team: attacker, goalZone: null }));
       return;
     }
-
     const nextDraft: EventDraft = { ...draft, team: attacker, goalZone: z };
     setDraft(nextDraft);
-
-    // In quick mode we don't open the outcome picker — we can't know
-    // what happened without asking. Quick mode only applies to
-    // non-shot events (cards, exclusions, etc.) from the bottom row.
     if (mode === 'quick') return;
+    // If court zone already picked, go straight to outcome. Otherwise wait
+    // for the user to pick the court zone too.
+    if (nextDraft.courtZone) {
+      setPendingShot({ draft: nextDraft, step: 'outcome' });
+    }
+  };
 
-    // Open the outcome dialog for the shot
-    setPendingShot({ draft: nextDraft, step: 'outcome' });
+  const handleCourtZoneTap = (z: CourtZoneId | null) => {
+    if (z === null || draft.courtZone === z) {
+      setDraft((d) => ({ ...d, team: attacker, courtZone: null }));
+      return;
+    }
+    const nextDraft: EventDraft = { ...draft, team: attacker, courtZone: z };
+    setDraft(nextDraft);
+    if (mode === 'quick') return;
+    // If goal zone already picked (arco → cancha order), fire outcome now.
+    if (nextDraft.goalZone) {
+      setPendingShot({ draft: nextDraft, step: 'outcome' });
+    }
   };
 
   const handleShotOutcomePicked = (outcome: ShotOutcome) => {
@@ -386,11 +393,11 @@ export const LiveMatchPage = () => {
         </div>
         <CourtView
           selectedZone={draft.courtZone === 'long_range' ? null : draft.courtZone}
-          onZoneSelect={handleCourtZone}
+          onZoneSelect={handleCourtZoneTap}
         />
         <button
           type="button"
-          onClick={() => handleCourtZone(longRangeActive ? null : 'long_range')}
+          onClick={() => handleCourtZoneTap(longRangeActive ? null : 'long_range')}
           className={cn(
             'mt-2 w-full h-10 rounded-md border text-xs font-medium transition-colors duration-fast touch-target',
             longRangeActive
@@ -501,7 +508,7 @@ export const LiveMatchPage = () => {
         }}
         goalZone={draft.goalZone}
         courtZone={draft.courtZone}
-        onPick={handleShotOutcomePicked}
+        onConfirm={handleShotOutcomePicked}
       />
 
       {pickerContext && (

@@ -1,84 +1,38 @@
-import type { HandballTeam, MatchSummary } from '@/domain/types';
+import type { HandballTeam } from '@/domain/types';
 import type { useMatchStore } from './store';
 
 type StoreState = ReturnType<typeof useMatchStore.getState>;
 
 /**
- * Seeds the store with a handful of fake teams and completed matches.
- * Useful for the design/UX demo when Supabase isn't wired up yet.
- *
- * Called from main.tsx only when `import.meta.env.DEV` is true.
+ * Seeds the store with two example teams the user can immediately use or
+ * delete. No completed matches are seeded — the user creates those.
  */
-export const seedDemoData = (store: StoreState): void => {
-  // Idempotent: don't overwrite if already seeded.
-  if (store.teams.length > 0 || store.completed.length > 0) return;
+export const seedDefaultTeams = (store: StoreState): void => {
+  if (store.teams.length > 0) return;
 
   const teams: HandballTeam[] = [
     {
-      id: 'team-atletico',
-      name: 'Atlético Handball',
+      id: 'team-demo-1',
+      name: 'Mi Equipo',
       color: '#3B82F6',
-      players: [],
+      players: [
+        { id: 'p-1-1', name: 'Arq Titular', number: 1,  position: 'Arquero' },
+        { id: 'p-1-2', name: 'Arq Suplente', number: 12, position: 'Arquero' },
+        { id: 'p-1-3', name: 'Ext. Izq',    number: 5,  position: 'Extremo Izq.' },
+        { id: 'p-1-4', name: 'Lat. Izq',    number: 7,  position: 'Lateral Izq.' },
+        { id: 'p-1-5', name: 'Armador',     number: 10, position: 'Armador' },
+        { id: 'p-1-6', name: 'Lat. Der',    number: 8,  position: 'Lateral Der.' },
+        { id: 'p-1-7', name: 'Ext. Der',    number: 11, position: 'Extremo Der.' },
+        { id: 'p-1-8', name: 'Pivote',      number: 9,  position: 'Pivote' },
+      ],
     },
     {
-      id: 'team-river',
-      name: 'River Plate',
+      id: 'team-demo-2',
+      name: 'Rival Ejemplo',
       color: '#EF4444',
       players: [],
     },
   ];
 
-  const completed: MatchSummary[] = [
-    {
-      id: 'm-001',
-      home: 'Atlético Handball',
-      away: 'Ferro',
-      hs: 28,
-      as: 24,
-      date: '12/04',
-      competition: 'Liga',
-      homeColor: '#3B82F6',
-      awayColor: '#10B981',
-      events: [],
-    },
-    {
-      id: 'm-002',
-      home: 'River Plate',
-      away: 'Atlético Handball',
-      hs: 22,
-      as: 22,
-      date: '05/04',
-      competition: 'Liga',
-      homeColor: '#EF4444',
-      awayColor: '#3B82F6',
-      events: [],
-    },
-    {
-      id: 'm-003',
-      home: 'Atlético Handball',
-      away: 'San Lorenzo',
-      hs: 18,
-      as: 25,
-      date: '29/03',
-      competition: 'Copa',
-      homeColor: '#3B82F6',
-      awayColor: '#F59E0B',
-      events: [],
-    },
-    {
-      id: 'm-004',
-      home: 'Boca Juniors',
-      away: 'Atlético Handball',
-      hs: 20,
-      as: 26,
-      date: '22/03',
-      competition: 'Liga',
-      homeColor: '#F59E0B',
-      awayColor: '#3B82F6',
-      events: [],
-    },
-  ];
-
   store.setTeams(teams);
-  store.setCompleted(completed);
 };

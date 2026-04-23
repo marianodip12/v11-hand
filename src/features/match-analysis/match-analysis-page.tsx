@@ -22,10 +22,12 @@ import {
   type MatchFilter,
 } from '@/domain/analysis';
 import { COURT_ZONES, EVENT_TYPES, GOAL_QUADRANTS } from '@/domain/constants';
+import { computeMatchStats } from '@/domain/stats';
 import type { CourtZoneId, GoalQuadrantId } from '@/domain/types';
 import { selectHomeTeam, useMatchStore } from '@/lib/store';
 import { cn } from '@/lib/cn';
 import { PlayersPanel } from './players-panel';
+import { CompareBar } from '@/features/live-match/live-stats';
 
 export const MatchAnalysisPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -62,6 +64,7 @@ export const MatchAnalysisPage = () => {
   const events = match.events;
   const filtered = applyFilter(events, filter);
   const summary = summarize(filtered);
+  const matchStats = computeMatchStats(events);
 
   // Dimensional aggregates — these respect the OTHER filters, always showing
   // meaningful counts regardless of which dimension is active.
@@ -304,6 +307,58 @@ export const MatchAnalysisPage = () => {
                   })}
               </ul>
             )}
+          </CardContent>
+        </Card>
+      </section>
+
+      {/* Comparativa total del partido — última sección */}
+      <section>
+        <div className="flex items-center justify-between mb-1.5">
+          <h3 className="text-xs font-medium text-fg">⚔️ Comparativa final</h3>
+          <span className="text-[10px] text-muted-fg">sin filtros</span>
+        </div>
+        <Card>
+          <CardContent className="p-3 space-y-2">
+            <CompareBar
+              label="Goles"
+              mine={matchStats.homeGoals}
+              theirs={matchStats.awayGoals}
+              myColor={match.homeColor}
+              theirColor={match.awayColor}
+              tone="goal"
+            />
+            <CompareBar
+              label="Tiros totales"
+              mine={matchStats.homeShots}
+              theirs={matchStats.awayShots}
+              myColor={match.homeColor}
+              theirColor={match.awayColor}
+              tone="neutral"
+            />
+            <CompareBar
+              label="Atajadas"
+              mine={matchStats.homeGKSaved}
+              theirs={matchStats.rivalGKSaved}
+              myColor={match.homeColor}
+              theirColor={match.awayColor}
+              tone="neutral"
+            />
+            <CompareBar
+              label="Exclusiones"
+              mine={matchStats.homeExcl}
+              theirs={matchStats.awayExcl}
+              myColor={match.homeColor}
+              theirColor={match.awayColor}
+              tone="exclusion"
+            />
+            <CompareBar
+              label="Pérdidas"
+              mine={matchStats.homeTurnover}
+              theirs={matchStats.awayTurnover}
+              myColor={match.homeColor}
+              theirColor={match.awayColor}
+              tone="danger"
+            />
           </CardContent>
         </Card>
       </section>
