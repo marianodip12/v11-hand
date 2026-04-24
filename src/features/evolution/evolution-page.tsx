@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/feedback';
+import { Stack, MaxWidthContainer } from '@/components/ui/responsive-grid';
 import {
   keyMoments,
   longestRun,
@@ -66,35 +67,37 @@ export const EvolutionPage = () => {
   }
 
   return (
-    <div className="space-y-3 pb-4">
-      <header>
-        <div className="text-[10px] font-semibold tracking-[3px] uppercase text-primary mb-1">
-          Evolución
+    <MaxWidthContainer>
+      <Stack gap="md" className="pb-4">
+        <header>
+          <div className="text-[10px] font-semibold tracking-[3px] uppercase text-primary mb-1">
+            Evolución
+          </div>
+          <h1 className="text-3xl font-semibold leading-tight md:text-4xl">📈 {myTeam.name}</h1>
+        </header>
+
+        {/* View tabs */}
+        <div className="rounded-lg border border-border bg-surface p-1 flex gap-1">
+          <ViewTab label="🏆 Temporada" active={view === 'season'} onClick={() => setView('season')} />
+          <ViewTab label="🎯 Por partido" active={view === 'match'} onClick={() => setView('match')} />
         </div>
-        <h1 className="text-2xl font-semibold leading-tight">📈 {myTeam.name}</h1>
-      </header>
 
-      {/* View tabs */}
-      <div className="rounded-lg border border-border bg-surface p-1 flex gap-1">
-        <ViewTab label="🏆 Temporada" active={view === 'season'} onClick={() => setView('season')} />
-        <ViewTab label="🎯 Por partido" active={view === 'match'} onClick={() => setView('match')} />
-      </div>
-
-      {view === 'season' ? (
-        <SeasonView matches={sorted} myTeamName={myTeam.name} myColor={myTeam.color} onOpenMatch={(id) => {
-          setSelectedId(id);
-          setView('match');
-        }} />
-      ) : (
-        <MatchView
-          matches={sorted}
-          selectedId={selectedId}
-          onSelect={setSelectedId}
-          myTeamName={myTeam.name}
-          myColor={myTeam.color}
-        />
-      )}
-    </div>
+        {view === 'season' ? (
+          <SeasonView matches={sorted} myTeamName={myTeam.name} myColor={myTeam.color} onOpenMatch={(id) => {
+            setSelectedId(id);
+            setView('match');
+          }} />
+        ) : (
+          <MatchView
+            matches={sorted}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+            myTeamName={myTeam.name}
+            myColor={myTeam.color}
+          />
+        )}
+      </Stack>
+    </MaxWidthContainer>
   );
 };
 

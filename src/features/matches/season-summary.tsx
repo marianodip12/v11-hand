@@ -71,7 +71,7 @@ export const SeasonSummary = ({
         </div>
       </CardHeader>
       <CardContent className="pt-0">
-        <div className="grid grid-cols-7 gap-1.5">
+        <div className="grid grid-cols-4 md:grid-cols-7 gap-1.5">
           {stats.map((s) => (
             <div
               key={s.label}

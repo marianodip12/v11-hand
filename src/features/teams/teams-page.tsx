@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/feedback';
+import { MaxWidthContainer, Stack } from '@/components/ui/responsive-grid';
 import { sortedPlayers } from '@/domain/teams';
 import type { HandballTeam, Player } from '@/domain/types';
 import { selectHomeTeam, useMatchStore } from '@/lib/store';
@@ -70,14 +71,15 @@ export const TeamsPage = () => {
   };
 
   return (
-    <div className="space-y-4">
-      <header className="flex items-start justify-between">
-        <div>
-          <div className="text-[10px] font-semibold tracking-[3px] uppercase text-primary mb-1">
-            Handball Pro
-          </div>
-          <h1 className="text-2xl font-semibold leading-tight">👥 Equipos</h1>
-          <p className="text-xs text-muted-fg mt-1">
+    <MaxWidthContainer>
+      <Stack gap="lg" className="pb-4">
+        <header className="flex items-start justify-between flex-col md:flex-row md:gap-4">
+          <div>
+            <div className="text-[10px] font-semibold tracking-[3px] uppercase text-primary mb-1">
+              Handball Pro
+            </div>
+            <h1 className="text-3xl md:text-4xl font-semibold leading-tight">👥 Equipos</h1>
+            <p className="text-xs text-muted-fg mt-1">
             {teams.length === 0
               ? 'Creá tu primer equipo para empezar'
               : `${teams.length} ${teams.length === 1 ? 'equipo' : 'equipos'}`}
@@ -274,7 +276,8 @@ export const TeamsPage = () => {
         editingPlayer={editingPlayer}
         onSave={handleSavePlayer}
       />
-    </div>
+      </Stack>
+    </MaxWidthContainer>
   );
 };
 

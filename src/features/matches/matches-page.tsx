@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/feedback';
+import { MaxWidthContainer, ResponsiveGrid, Stack } from '@/components/ui/responsive-grid';
 import { computeScore } from '@/domain/events';
 import { selectHomeTeam, useMatchStore } from '@/lib/store';
 import { LiveBanner, MatchCard } from './match-cards';
@@ -46,27 +47,28 @@ export const MatchesPage = () => {
   };
 
   return (
-    <div className="space-y-4">
-      <header className="flex items-start justify-between">
-        <div>
-          <div className="text-[10px] font-semibold tracking-[3px] uppercase text-primary mb-1">
-            Handball Pro
+    <MaxWidthContainer>
+      <Stack gap="lg" className="pb-4">
+        <header className="flex items-start justify-between flex-col md:flex-row md:gap-4">
+          <div>
+            <div className="text-[10px] font-semibold tracking-[3px] uppercase text-primary mb-1">
+              Handball Pro
+            </div>
+            <h1 className="text-3xl md:text-4xl font-semibold leading-tight">🤾 Partidos</h1>
+            <p className="text-xs text-muted-fg mt-1">Temporada {seasonYear}</p>
           </div>
-          <h1 className="text-2xl font-semibold leading-tight">🤾 Partidos</h1>
-          <p className="text-xs text-muted-fg mt-1">Temporada {seasonYear}</p>
-        </div>
-        {status === 'idle' && (
-          teams.length === 0 ? (
-            <Button size="sm" variant="secondary" onClick={() => navigate('/teams')}>
-              Cargar equipo
-            </Button>
-          ) : (
-            <Button size="sm" onClick={() => setShowNewMatch(true)}>
-              <PlusIcon /> Nuevo
-            </Button>
-          )
-        )}
-      </header>
+          {status === 'idle' && (
+            teams.length === 0 ? (
+              <Button size="sm" variant="secondary" onClick={() => navigate('/teams')}>
+                Cargar equipo
+              </Button>
+            ) : (
+              <Button size="sm" onClick={() => setShowNewMatch(true)}>
+                <PlusIcon /> Nuevo
+              </Button>
+            )
+          )}
+        </header>
 
       {completed.length > 0 && (
         <SeasonSummary
@@ -113,10 +115,10 @@ export const MatchesPage = () => {
 
       {completed.length > 0 && (
         <section>
-          <div className="text-[10px] font-semibold tracking-[2px] uppercase text-muted-fg mb-2">
+          <div className="text-[10px] font-semibold tracking-[2px] uppercase text-muted-fg mb-3">
             Historial
           </div>
-          <div className="space-y-2">
+          <ResponsiveGrid cols={{ mobile: 1, tablet: 2, desktop: 2 }} gap="md">
             {completed.map((m) => (
               <MatchCard
                 key={m.id}
@@ -132,7 +134,7 @@ export const MatchesPage = () => {
                 onDelete={() => handleDelete(m.id)}
               />
             ))}
-          </div>
+          </ResponsiveGrid>
         </section>
       )}
 
@@ -142,7 +144,8 @@ export const MatchesPage = () => {
         teams={teams}
         onStart={handleStartMatch}
       />
-    </div>
+      </Stack>
+    </MaxWidthContainer>
   );
 };
 

@@ -26,6 +26,33 @@ import { PlayerPicker, type PickerKind } from './player-picker';
 import { LiveStats } from './live-stats';
 import { EventTimeline } from './event-timeline';
 import { ShotOutcomeDialog, type ShotOutcome } from './shot-outcome-dialog';
+/**
+ * TODO: Para usar el responsive layout en live-match-page:
+ *
+ * 1. Extractar cada sección en una variable:
+ *    const controlSection = (<> ... scoreboard + attacker + mode ... </>)
+ *    const goalSection = (<GoalGrid ... />)
+ *    const courtSection = (<CourtView ... /> + button)
+ *    const statsSection = (<LiveStats ... />)
+ *    const timelineSection = (<EventTimeline ... />)
+ *
+ * 2. Reemplazar el return con:
+ *    return (
+ *      <LiveMatchLayout
+ *        control={controlSection}
+ *        goalZone={goalSection}
+ *        court={courtSection}
+ *        stats={statsSection}
+ *        timeline={timelineSection}
+ *      />
+ *    )
+ *
+ * Esto activa automáticamente:
+ * - Mobile: stack vertical
+ * - Tablet (768px+): 2 columnas (control+arco izq, stats+timeline derecha)
+ * - Desktop (1024px+): 3 columnas compactas con scroll lateral
+ */
+
 
 /**
  * Collects people (shooters + sanctioned) already tagged for `team` in this
@@ -36,11 +63,27 @@ const adhocPlayersFor = (events: HandballEvent[], team: Team): PersonRef[] => {
   const byNumber = new Map<number, PersonRef>();
   for (const e of events) {
     if (e.team !== team) continue;
-    const refs: (PersonRef | null | undefined)[] = [e.shooter, e.sanctioned, e.goalkeeper];
+    const refs: (PersonRef | null | undefined)[] = [e.shooter, e.sanctioned];
     for (const r of refs) {
       if (!r) continue;
       byNumber.set(r.number, r);
     }
+  }
+  return Array.from(byNumber.values()).sort((a, b) => a.number - b.number);
+};
+
+/**
+ * Goalkeepers already tagged for `gkTeam`. A goalkeeper shows up in events
+ * where the attacking team is the OPPOSITE of the GK's team — when we
+ * attacked, the GK who defended is the rival's.
+ */
+const adhocGoalkeepersFor = (events: HandballEvent[], gkTeam: Team): PersonRef[] => {
+  const attackingTeam: Team = gkTeam === 'home' ? 'away' : 'home';
+  const byNumber = new Map<number, PersonRef>();
+  for (const e of events) {
+    if (e.team !== attackingTeam) continue;
+    if (!e.goalkeeper) continue;
+    byNumber.set(e.goalkeeper.number, e.goalkeeper);
   }
   return Array.from(byNumber.values()).sort((a, b) => a.number - b.number);
 };
@@ -243,6 +286,7 @@ export const LiveMatchPage = () => {
       const gkIsOurs = d.team === 'away';
       const gkTeamName = gkIsOurs ? match.home : match.away;
       const gkColor = gkIsOurs ? match.homeColor : match.awayColor;
+      const gkTeam: Team = gkIsOurs ? 'home' : 'away';
       const teamObj = teams.find((t) => t.name === gkTeamName);
       const players = teamObj?.players ?? [];
       const { goalkeepers } = splitRoster(players);
@@ -250,7 +294,7 @@ export const LiveMatchPage = () => {
         open: true,
         kind: 'goalkeeper' as PickerKind,
         players: goalkeepers,
-        adhocPlayers: adhocPlayersFor(events, gkIsOurs ? 'home' : 'away'),
+        adhocPlayers: adhocGoalkeepersFor(events, gkTeam),
         teamColor: gkColor,
         teamName: gkTeamName,
         onPick: handleShotGkPicked,

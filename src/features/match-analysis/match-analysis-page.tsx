@@ -14,6 +14,7 @@ import {
   perQuadrant,
   perShooter,
   perZone,
+  setTypeOnly,
   summarize,
   toggleQuadrant,
   toggleTeam,
@@ -24,7 +25,7 @@ import {
 } from '@/domain/analysis';
 import { COURT_ZONES, EVENT_TYPES, GOAL_QUADRANTS } from '@/domain/constants';
 import { computeMatchStats } from '@/domain/stats';
-import type { CourtZoneId, GoalQuadrantId } from '@/domain/types';
+import type { CourtZoneId, GoalQuadrantId, HandballEvent } from '@/domain/types';
 import { selectHomeTeam, useMatchStore } from '@/lib/store';
 import { cn } from '@/lib/cn';
 import { PlayersPanel } from './players-panel';
@@ -43,6 +44,10 @@ export const MatchAnalysisPage = () => {
   );
 
   const [filter, setFilter] = useState<MatchFilter>(EMPTY_FILTER);
+  // UI-only: "Fuera" is a sub-type (miss + goalZone=out) that the domain
+  // model doesn't express directly. We track it as a boolean flag and
+  // post-filter the event list accordingly.
+  const [fueraMode, setFueraMode] = useState<boolean>(false);
 
   if (!match) {
     return (
@@ -63,16 +68,22 @@ export const MatchAnalysisPage = () => {
   }
 
   const events = match.events;
-  const filtered = applyFilter(events, filter);
+  // Apply fueraMode on top of the base filter: restrict miss events to
+  // those whose goalZone is 'out'.
+  const baseFiltered = applyFilter(events, filter);
+  const filtered = fueraMode
+    ? baseFiltered.filter((e) => e.type === 'miss' && e.goalZone === 'out')
+    : baseFiltered;
   const summary = summarize(filtered);
   const matchStats = computeMatchStats(events);
 
   // Dimensional aggregates — these respect the OTHER filters, always showing
   // meaningful counts regardless of which dimension is active.
-  const zoneCounts = perZone(events, filter);
-  const quadCounts = perQuadrant(events, filter);
-  const shooters = perShooter(events, filter);
-  const goalkeepers = perGoalkeeper(events, filter);
+  const aggFilter = fueraMode ? { ...filter, types: ['miss'] as HandballEvent['type'][] } : filter;
+  const zoneCounts = perZone(events, aggFilter);
+  const quadCounts = perQuadrant(events, aggFilter);
+  const shooters = perShooter(events, aggFilter);
+  const goalkeepers = perGoalkeeper(events, aggFilter);
 
   // Resolve labels for active filter chips (domain is label-free)
   const labels: FilterLabels = {
@@ -92,37 +103,37 @@ export const MatchAnalysisPage = () => {
   const theirGoals = match.home === myTeam?.name ? match.as : match.hs;
 
   return (
-    <div className="space-y-3 pb-4">
-      {/* Header: match info + score */}
-      <header>
-        <div className="flex items-center justify-between mb-1">
-          <div className="text-[10px] font-semibold tracking-[3px] uppercase text-primary">
-            📊 Análisis
+    <div className="max-w-7xl mx-auto w-full px-4 md:px-6 lg:px-8 space-y-3 pb-4">
+    {/* Header: match info + score */}
+    <header>
+          <div className="flex items-center justify-between mb-1">
+            <div className="text-[10px] font-semibold tracking-[3px] uppercase text-primary">
+              📊 Análisis
+            </div>
+            <button
+              onClick={() => navigate('/')}
+              className="text-[11px] text-muted-fg hover:text-fg"
+            >
+              ← Volver
+            </button>
           </div>
-          <button
-            onClick={() => navigate('/')}
-            className="text-[11px] text-muted-fg hover:text-fg"
-          >
-            ← Volver
-          </button>
-        </div>
-        <div className="flex items-baseline gap-2">
-          <h1 className="text-xl font-semibold leading-tight truncate">
-            {match.home} <span className="text-muted-fg font-mono tabular">{match.hs}</span>
-            <span className="text-muted-fg"> – </span>
-            <span className="text-muted-fg font-mono tabular">{match.as}</span> {match.away}
-          </h1>
-        </div>
-        <div className="flex items-center gap-2 mt-1">
-          {match.date && <span className="text-[11px] text-muted-fg">{match.date}</span>}
-          {match.competition && <Badge tone="primary">{match.competition}</Badge>}
-          {myTeam && (
-            <Badge tone={myGoals > theirGoals ? 'goal' : myGoals === theirGoals ? 'warning' : 'danger'}>
-              {myGoals > theirGoals ? 'Victoria' : myGoals === theirGoals ? 'Empate' : 'Derrota'}
-            </Badge>
-          )}
-        </div>
-      </header>
+          <div className="flex flex-col md:flex-row items-baseline gap-2">
+            <h1 className="text-2xl md:text-3xl font-semibold leading-tight truncate">
+              {match.home} <span className="text-muted-fg font-mono tabular">{match.hs}</span>
+              <span className="text-muted-fg"> – </span>
+              <span className="text-muted-fg font-mono tabular">{match.as}</span> {match.away}
+            </h1>
+          </div>
+          <div className="flex items-center gap-2 mt-1 flex-wrap">
+            {match.date && <span className="text-[11px] text-muted-fg">{match.date}</span>}
+            {match.competition && <Badge tone="primary">{match.competition}</Badge>}
+            {myTeam && (
+              <Badge tone={myGoals > theirGoals ? 'goal' : myGoals === theirGoals ? 'warning' : 'danger'}>
+                {myGoals > theirGoals ? 'Victoria' : myGoals === theirGoals ? 'Empate' : 'Derrota'}
+              </Badge>
+            )}
+          </div>
+        </header>
 
       {/* Team selector */}
       <div className="rounded-lg border border-border bg-surface p-1 flex gap-1">
@@ -161,7 +172,7 @@ export const MatchAnalysisPage = () => {
           ))}
           <button
             type="button"
-            onClick={() => setFilter(EMPTY_FILTER)}
+            onClick={() => { setFilter(EMPTY_FILTER); setFueraMode(false); }}
             className="inline-flex items-center px-2.5 py-1 rounded-full border border-border bg-surface-2 text-[11px] text-muted-fg hover:text-fg"
           >
             Limpiar todo
@@ -169,26 +180,93 @@ export const MatchAnalysisPage = () => {
         </div>
       )}
 
-      {/* Filtered summary card — gold accent when filter is active */}
+      {/* Filtered summary card — tiles are tappable tabs */}
       <Card
         className={cn(
-          isEmptyFilter(filter) ? '' : 'border-warning/40 bg-warning/5',
+          isEmptyFilter(filter) && !fueraMode ? '' : 'border-warning/40 bg-warning/5',
         )}
       >
         <CardContent className="p-3">
           <div className="grid grid-cols-3 gap-2 mb-2">
-            <SummaryTile value={summary.shots}     label="Lanzam."  tone="neutral" big />
-            <SummaryTile value={summary.goals}     label="Goles"    tone="goal"    big />
-            <SummaryTile value={`${summary.pct}%`} label="Efect."   tone="goal"    big />
+            <SummaryBigTab
+              value={summary.shots}
+              label="Lanzam."
+              tone="neutral"
+              active={filter.types.length === 0 && !fueraMode}
+              onClick={() => {
+                setFilter((f) => setTypeOnly(f, null));
+                setFueraMode(false);
+              }}
+            />
+            <SummaryBigTab
+              value={summary.goals}
+              label="Goles"
+              tone="goal"
+              active={isTypeActive(filter, 'goal') && !fueraMode}
+              onClick={() => {
+                setFilter((f) => setTypeOnly(f, 'goal'));
+                setFueraMode(false);
+              }}
+            />
+            <SummaryBigTab
+              value={`${summary.pct}%`}
+              label="Efect."
+              tone="goal"
+              active={false}
+              onClick={() => { /* no-op, pct is just a stat */ }}
+              readOnly
+            />
           </div>
           <div className="grid grid-cols-4 gap-1.5">
-            <SummaryTile value={summary.saved} label="Atajadas" tone="save" />
-            <SummaryTile value={summary.post}  label="Palos"    tone="warning" />
-            <SummaryTile value={summary.out}   label="Fuera"    tone="neutral" />
-            <SummaryTile value={summary.miss - summary.out} label="Errados" tone="neutral" />
+            <SummaryTab
+              value={summary.saved}
+              label="Atajadas"
+              tone="save"
+              active={isTypeActive(filter, 'saved') && !fueraMode}
+              onClick={() => {
+                setFilter((f) => setTypeOnly(f, 'saved'));
+                setFueraMode(false);
+              }}
+            />
+            <SummaryTab
+              value={summary.post}
+              label="Palos"
+              tone="warning"
+              active={isTypeActive(filter, 'post') && !fueraMode}
+              onClick={() => {
+                setFilter((f) => setTypeOnly(f, 'post'));
+                setFueraMode(false);
+              }}
+            />
+            <SummaryTab
+              value={summary.out}
+              label="Fuera"
+              tone="neutral"
+              active={fueraMode}
+              onClick={() => {
+                // Fuera toggles: set miss type + mark fueraMode
+                if (fueraMode) {
+                  setFueraMode(false);
+                  setFilter((f) => setTypeOnly(f, null));
+                } else {
+                  setFueraMode(true);
+                  setFilter((f) => setTypeOnly(f, 'miss'));
+                }
+              }}
+            />
+            <SummaryTab
+              value={summary.miss - summary.out}
+              label="Errados"
+              tone="neutral"
+              active={isTypeActive(filter, 'miss') && !fueraMode}
+              onClick={() => {
+                setFilter((f) => setTypeOnly(f, 'miss'));
+                setFueraMode(false);
+              }}
+            />
           </div>
           <div className="text-[10px] text-muted-fg mt-2 text-center">
-            {isEmptyFilter(filter)
+            {isEmptyFilter(filter) && !fueraMode
               ? `${events.length} ${events.length === 1 ? 'evento' : 'eventos'} en total`
               : `${summary.events} ${summary.events === 1 ? 'evento coincide' : 'eventos coinciden'} con el filtro`}
           </div>
@@ -408,27 +486,67 @@ const TONE: Record<string, string> = {
   neutral: 'text-fg',
 };
 
-const SummaryTile = ({
-  value,
-  label,
-  tone,
-  big = false,
+// ─── Tappable summary tabs (reuse structure, add active / click) ─────────
+
+const isTypeActive = (f: MatchFilter, t: 'goal' | 'saved' | 'miss' | 'post'): boolean =>
+  f.types.length === 1 && f.types[0] === t;
+
+const SummaryBigTab = ({
+  value, label, tone, active, onClick, readOnly = false,
 }: {
   value: number | string;
   label: string;
   tone: 'goal' | 'save' | 'warning' | 'neutral';
-  big?: boolean;
+  active: boolean;
+  onClick: () => void;
+  readOnly?: boolean;
 }) => (
-  <div className="flex flex-col items-center justify-center rounded-md bg-surface-2/50 border border-border py-1.5">
-    <span className={cn(
-      'font-mono font-semibold tabular leading-none',
-      TONE[tone],
-      big ? 'text-xl' : 'text-base',
-    )}>
+  <button
+    type="button"
+    onClick={onClick}
+    disabled={readOnly}
+    className={cn(
+      'flex flex-col items-center justify-center rounded-md border py-1.5 transition-colors',
+      active
+        ? 'border-primary bg-primary/15 ring-1 ring-primary/40'
+        : readOnly
+          ? 'border-border bg-surface-2/50 cursor-default'
+          : 'border-border bg-surface-2/50 hover:bg-surface-2 hover:border-primary/40 active:scale-[0.98]',
+    )}
+  >
+    <span className={cn('font-mono text-xl font-semibold tabular leading-none', TONE[tone])}>
       {value}
     </span>
     <span className="text-[8px] uppercase tracking-widest text-muted-fg mt-1">
       {label}
     </span>
-  </div>
+  </button>
+);
+
+const SummaryTab = ({
+  value, label, tone, active, onClick,
+}: {
+  value: number | string;
+  label: string;
+  tone: 'goal' | 'save' | 'warning' | 'neutral';
+  active: boolean;
+  onClick: () => void;
+}) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className={cn(
+      'flex flex-col items-center justify-center rounded-md border py-1.5 transition-colors',
+      active
+        ? 'border-primary bg-primary/15 ring-1 ring-primary/40'
+        : 'border-border bg-surface-2/50 hover:bg-surface-2 hover:border-primary/40 active:scale-[0.98]',
+    )}
+  >
+    <span className={cn('font-mono text-base font-semibold tabular leading-none', TONE[tone])}>
+      {value}
+    </span>
+    <span className="text-[8px] uppercase tracking-widest text-muted-fg mt-1">
+      {label}
+    </span>
+  </button>
 );

@@ -67,37 +67,39 @@ export const StatsPage = () => {
   const scorers = topScorers(completed, filter, 15);
 
   return (
-    <div className="space-y-3 pb-4">
-      <header>
-        <div className="text-[10px] font-semibold tracking-[3px] uppercase text-primary mb-1">
-          Stats
-        </div>
-        <h1 className="text-2xl font-semibold leading-tight">📊 {myTeam.name}</h1>
-        <p className="text-xs text-muted-fg mt-1">
-          {relevant.length} {relevant.length === 1 ? 'partido' : 'partidos'}
-          {competition && ` · ${competition}`}
-        </p>
-      </header>
+    <div className="w-full">
+      <div className="space-y-3 pb-4">
+        <header>
+          <div className="text-[10px] font-semibold tracking-[3px] uppercase text-primary mb-1">
+            Stats
+          </div>
+          <h1 className="text-3xl font-semibold leading-tight md:text-4xl">📊 {myTeam.name}</h1>
+          <p className="text-xs text-muted-fg mt-1">
+            {relevant.length} {relevant.length === 1 ? 'partido' : 'partidos'}
+            {competition && ` · ${competition}`}
+          </p>
+        </header>
 
-      <div className="rounded-lg border border-border bg-surface p-1 flex gap-1">
-        <ViewTab label="📋 Resumen"  active={view === 'resumen'}    onClick={() => setView('resumen')} />
-        <ViewTab label="🎯 Jugadores" active={view === 'jugadores'} onClick={() => setView('jugadores')} />
+        <div className="rounded-lg border border-border bg-surface p-1 flex gap-1">
+          <ViewTab label="📋 Resumen"  active={view === 'resumen'}    onClick={() => setView('resumen')} />
+          <ViewTab label="🎯 Jugadores" active={view === 'jugadores'} onClick={() => setView('jugadores')} />
+        </div>
+
+        {competitions.length > 0 && (
+          <div className="flex gap-1 flex-wrap">
+            <CompChip label="Todas" active={competition === null} onClick={() => setCompetition(null)} />
+            {competitions.map((c) => (
+              <CompChip key={c} label={c} active={competition === c} onClick={() => setCompetition(c)} />
+            ))}
+          </div>
+        )}
+
+        {view === 'resumen' ? (
+          <ResumenView totals={totals} points={matchPoints} />
+        ) : (
+          <JugadoresView scorers={scorers} />
+        )}
       </div>
-
-      {competitions.length > 0 && (
-        <div className="flex gap-1 flex-wrap">
-          <CompChip label="Todas" active={competition === null} onClick={() => setCompetition(null)} />
-          {competitions.map((c) => (
-            <CompChip key={c} label={c} active={competition === c} onClick={() => setCompetition(c)} />
-          ))}
-        </div>
-      )}
-
-      {view === 'resumen' ? (
-        <ResumenView totals={totals} points={matchPoints} />
-      ) : (
-        <JugadoresView scorers={scorers} />
-      )}
     </div>
   );
 };
@@ -108,7 +110,7 @@ const ResumenView = ({
   totals: ReturnType<typeof computeSeasonTotals>;
   points: ReturnType<typeof toMatchPoints>;
 }) => (
-  <div className="space-y-3">
+  <div className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-3">
     <Card>
       <CardContent className="p-3">
         <div className="grid grid-cols-4 gap-2">

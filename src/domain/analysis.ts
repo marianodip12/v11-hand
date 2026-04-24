@@ -79,6 +79,16 @@ export const toggleQuadrant = (f: MatchFilter, q: GoalQuadrantId): MatchFilter =
 export const toggleShooter = (f: MatchFilter, key: string): MatchFilter =>
   f.shooterKey === key ? { ...f, shooterKey: null } : { ...f, shooterKey: key };
 
+/** Exclusive-type filter: tap a tab → only events of that type. Tap again → clear. */
+export const setTypeOnly = (
+  f: MatchFilter,
+  t: HandballEvent['type'] | null,
+): MatchFilter => {
+  if (t === null) return { ...f, types: [] };
+  const already = f.types.length === 1 && f.types[0] === t;
+  return { ...f, types: already ? [] : [t] };
+};
+
 // ─── Aggregates over a filtered result ─────────────────────────────────
 
 export interface FilteredSummary {
