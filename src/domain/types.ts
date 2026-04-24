@@ -106,8 +106,8 @@ export interface MatchSummary {
   away: string;
   hs: number;
   as: number;
-  date: string;
-  competition: string;
+  date: string | null;
+  competition: string | null;
   homeColor: string;
   awayColor: string;
   events: HandballEvent[];
