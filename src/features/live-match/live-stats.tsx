@@ -1,3 +1,4 @@
+import { useT } from '@/lib/i18n';
 import { useMemo } from 'react';
 import { computeMatchStats } from '@/domain/stats';
 import type { HandballEvent, Team } from '@/domain/types';
@@ -13,6 +14,7 @@ export interface LiveStatsProps {
 }
 
 export const LiveStats = ({ events, home, away, homeColor, awayColor, focus }: LiveStatsProps) => {
+  const t = useT();
   const s = useMemo(() => computeMatchStats(events), [events]);
 
   const isHome = focus === 'home';
@@ -35,6 +37,7 @@ export const LiveStats = ({ events, home, away, homeColor, awayColor, focus }: L
     oppGKName:  isHome ? away           : home,
   };
 
+
   return (
     <div className="rounded-lg border border-border bg-surface">
       <div className="p-3 space-y-3">
@@ -44,17 +47,17 @@ export const LiveStats = ({ events, home, away, homeColor, awayColor, focus }: L
         </div>
 
         <div className="grid grid-cols-3 gap-2">
-          <StatTile value={focused.goals}     label="Goles"       tone="goal" big />
-          <StatTile value={focused.shots}     label="Tiros"       tone="neutral" big />
-          <StatTile value={`${focused.pct}%`} label="Efectividad" tone="goal" big />
+          <StatTile value={focused.goals}     label={t.stats_goals}        tone="goal" big />
+          <StatTile value={focused.shots}     label={t.stats_shots}        tone="neutral" big />
+          <StatTile value={`${focused.pct}%`} label={t.stats_pct}          tone="goal" big />
 
-          <StatTile value={focused.savedAg}   label="Ataj. recib." tone="save" />
-          <StatTile value={focused.missed}    label="Errados"      tone="danger" />
-          <StatTile value={focused.turnovers} label="Pérdidas"     tone="danger" />
+          <StatTile value={focused.savedAg}   label={t.analysis_atajadas}  tone="save" />
+          <StatTile value={focused.missed}    label={t.analysis_errados}   tone="danger" />
+          <StatTile value={focused.turnovers} label={t.live_turnovers}     tone="danger" />
 
-          <StatTile value={focused.excl}      label="Exclusiones"  tone="exclusion" />
-          <StatTile value={focused.penals}    label="Penales"      tone="card" />
-          <StatTile value={focused.goalsAg}   label="Goles contr." tone="neutral" />
+          <StatTile value={focused.excl}      label={t.live_excl}          tone="exclusion" />
+          <StatTile value={focused.penals}    label={t.live_penals}        tone="card" />
+          <StatTile value={focused.goalsAg}   label={t.stats_goals_against} tone="neutral" />
         </div>
 
         {focused.oppGKTotal > 0 && (
@@ -62,7 +65,7 @@ export const LiveStats = ({ events, home, away, homeColor, awayColor, focus }: L
             <div className="flex items-center gap-1.5 min-w-0">
               <GlovesIcon />
               <span className="text-xs text-save truncate">
-                Arq. {focused.oppGKName} — {focused.oppGKSaved} {focused.oppGKSaved === 1 ? 'atajada' : 'atajadas'}
+                GK {focused.oppGKName} — {focused.oppGKSaved} {t.analysis_atajadas.toLowerCase()}
               </span>
             </div>
             <span className="font-mono text-sm font-semibold tabular text-save">

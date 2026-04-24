@@ -27,11 +27,13 @@ import { COURT_ZONES, EVENT_TYPES, GOAL_QUADRANTS } from '@/domain/constants';
 import { computeMatchStats } from '@/domain/stats';
 import type { CourtZoneId, GoalQuadrantId, HandballEvent } from '@/domain/types';
 import { selectHomeTeam, useMatchStore } from '@/lib/store';
+import { useT } from '@/lib/i18n';
 import { cn } from '@/lib/cn';
 import { PlayersPanel } from './players-panel';
 import { CompareBar } from '@/features/live-match/live-stats';
 
 export const MatchAnalysisPage = () => {
+  const t = useT();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
@@ -53,7 +55,7 @@ export const MatchAnalysisPage = () => {
     return (
       <div className="space-y-4">
         <header>
-          <h1 className="text-2xl font-semibold leading-tight">📊 Análisis</h1>
+          <h1 className="text-2xl font-semibold leading-tight">{t.analysis_title}</h1>
         </header>
         <Card>
           <CardContent className="p-6 text-center">
@@ -108,7 +110,7 @@ export const MatchAnalysisPage = () => {
     <header>
           <div className="flex items-center justify-between mb-1">
             <div className="text-[10px] font-semibold tracking-[3px] uppercase text-primary">
-              📊 Análisis
+              {t.analysis_title}
             </div>
             <button
               onClick={() => navigate('/')}
@@ -138,7 +140,7 @@ export const MatchAnalysisPage = () => {
       {/* Team selector */}
       <div className="rounded-lg border border-border bg-surface p-1 flex gap-1">
         <FilterTeamButton
-          label={`Ambos (${events.length})`}
+          label={`${t.analysis_all_teams} (${events.length})`}
           active={filter.team === null}
           onClick={() => setFilter({ ...filter, team: null })}
         />
@@ -190,7 +192,7 @@ export const MatchAnalysisPage = () => {
           <div className="grid grid-cols-3 gap-2 mb-2">
             <SummaryBigTab
               value={summary.shots}
-              label="Lanzam."
+              label={t.analysis_lanzam}
               tone="neutral"
               active={filter.types.length === 0 && !fueraMode}
               onClick={() => {
@@ -200,7 +202,7 @@ export const MatchAnalysisPage = () => {
             />
             <SummaryBigTab
               value={summary.goals}
-              label="Goles"
+              label={t.stats_goals}
               tone="goal"
               active={isTypeActive(filter, 'goal') && !fueraMode}
               onClick={() => {
@@ -210,7 +212,7 @@ export const MatchAnalysisPage = () => {
             />
             <SummaryBigTab
               value={`${summary.pct}%`}
-              label="Efect."
+              label={t.analysis_efect}
               tone="goal"
               active={false}
               onClick={() => { /* no-op, pct is just a stat */ }}
@@ -220,7 +222,7 @@ export const MatchAnalysisPage = () => {
           <div className="grid grid-cols-4 gap-1.5">
             <SummaryTab
               value={summary.saved}
-              label="Atajadas"
+              label={t.analysis_atajadas}
               tone="save"
               active={isTypeActive(filter, 'saved') && !fueraMode}
               onClick={() => {
@@ -230,7 +232,7 @@ export const MatchAnalysisPage = () => {
             />
             <SummaryTab
               value={summary.post}
-              label="Palos"
+              label={t.analysis_palos}
               tone="warning"
               active={isTypeActive(filter, 'post') && !fueraMode}
               onClick={() => {
@@ -240,7 +242,7 @@ export const MatchAnalysisPage = () => {
             />
             <SummaryTab
               value={summary.out}
-              label="Fuera"
+              label={t.analysis_fuera}
               tone="neutral"
               active={fueraMode}
               onClick={() => {
@@ -256,7 +258,7 @@ export const MatchAnalysisPage = () => {
             />
             <SummaryTab
               value={summary.miss - summary.out}
-              label="Errados"
+              label={t.analysis_errados}
               tone="neutral"
               active={isTypeActive(filter, 'miss') && !fueraMode}
               onClick={() => {
@@ -267,8 +269,8 @@ export const MatchAnalysisPage = () => {
           </div>
           <div className="text-[10px] text-muted-fg mt-2 text-center">
             {isEmptyFilter(filter) && !fueraMode
-              ? `${events.length} ${events.length === 1 ? 'evento' : 'eventos'} en total`
-              : `${summary.events} ${summary.events === 1 ? 'evento coincide' : 'eventos coinciden'} con el filtro`}
+              ? `${events.length} ${t.analysis_event_total}`
+              : `${summary.events} ${t.analysis_event_match}`}
           </div>
         </CardContent>
       </Card>
@@ -276,9 +278,9 @@ export const MatchAnalysisPage = () => {
       {/* Arco — tap quadrants to filter */}
       <section>
         <div className="flex items-center justify-between mb-1.5">
-          <h3 className="text-xs font-medium text-fg">🎯 Arco</h3>
+          <h3 className="text-xs font-medium text-fg">{t.analysis_arco}</h3>
           <span className="text-[10px] text-muted-fg">
-            Tocá un cuadrante para filtrar
+            {t.analysis_arco_hint}
           </span>
         </div>
         <div className="max-w-sm md:max-w-md mx-auto">
@@ -297,9 +299,9 @@ export const MatchAnalysisPage = () => {
       {/* Cancha — tap zones to filter */}
       <section>
         <div className="flex items-center justify-between mb-1.5">
-          <h3 className="text-xs font-medium text-fg">🏐 Cancha</h3>
+          <h3 className="text-xs font-medium text-fg">{t.analysis_court}</h3>
           <span className="text-[10px] text-muted-fg">
-            Tocá una zona para filtrar
+            {t.analysis_court_hint}
           </span>
         </div>
         <div className="max-w-sm md:max-w-md mx-auto">
@@ -323,7 +325,7 @@ export const MatchAnalysisPage = () => {
                   : 'border-card/30 bg-card/5 text-card/80 hover:bg-card/10',
               )}
             >
-              🎯 Arco a Arco ({zoneCounts.long_range})
+              {t.live_arco_a_arco} ({zoneCounts.long_range})
             </button>
           )}
         </div>
@@ -332,7 +334,7 @@ export const MatchAnalysisPage = () => {
       {/* Players */}
       <section>
         <div className="flex items-center justify-between mb-1.5">
-          <h3 className="text-xs font-medium text-fg">👥 Jugadores</h3>
+          <h3 className="text-xs font-medium text-fg">{t.analysis_players}</h3>
         </div>
         <PlayersPanel
           shooters={shooters}
@@ -396,13 +398,13 @@ export const MatchAnalysisPage = () => {
       {/* Comparativa total del partido — última sección */}
       <section>
         <div className="flex items-center justify-between mb-1.5">
-          <h3 className="text-xs font-medium text-fg">⚔️ Comparativa final</h3>
-          <span className="text-[10px] text-muted-fg">sin filtros</span>
+          <h3 className="text-xs font-medium text-fg">⚔️ {t.analysis_compare}</h3>
+          <span className="text-[10px] text-muted-fg">{t.analysis_no_filter}</span>
         </div>
         <Card>
           <CardContent className="p-3 space-y-2">
             <CompareBar
-              label="Goles"
+              label={t.stats_goals}
               mine={matchStats.homeGoals}
               theirs={matchStats.awayGoals}
               myColor={match.homeColor}
@@ -410,7 +412,7 @@ export const MatchAnalysisPage = () => {
               tone="goal"
             />
             <CompareBar
-              label="Tiros totales"
+              label={t.stats_shots}
               mine={matchStats.homeShots}
               theirs={matchStats.awayShots}
               myColor={match.homeColor}
@@ -418,7 +420,7 @@ export const MatchAnalysisPage = () => {
               tone="neutral"
             />
             <CompareBar
-              label="Atajadas"
+              label={t.analysis_atajadas}
               mine={matchStats.homeGKSaved}
               theirs={matchStats.rivalGKSaved}
               myColor={match.homeColor}
@@ -426,7 +428,7 @@ export const MatchAnalysisPage = () => {
               tone="neutral"
             />
             <CompareBar
-              label="Exclusiones"
+              label={t.live_excl}
               mine={matchStats.homeExcl}
               theirs={matchStats.awayExcl}
               myColor={match.homeColor}
@@ -434,7 +436,7 @@ export const MatchAnalysisPage = () => {
               tone="exclusion"
             />
             <CompareBar
-              label="Pérdidas"
+              label={t.live_turnovers}
               mine={matchStats.homeTurnover}
               theirs={matchStats.awayTurnover}
               myColor={match.homeColor}

@@ -1,3 +1,4 @@
+import { useT } from '@/lib/i18n';
 import { useMemo, useState } from 'react';
 import type { GoalkeeperSummary, ShooterSummary } from '@/domain/analysis';
 import type { Team } from '@/domain/types';
@@ -22,6 +23,8 @@ type TeamFilter = Team | 'all';
  * Two-mode panel: shooters (tiradores) vs goalkeepers (arqueros).
  * Within each mode, a toggle filters by team.
  */
+const _PlayersPanel_placeholder = null; void _PlayersPanel_placeholder;
+
 export const PlayersPanel = ({
   shooters,
   goalkeepers,
@@ -32,6 +35,7 @@ export const PlayersPanel = ({
   awayColor,
   onToggle,
 }: PlayersPanelProps) => {
+  const t = useT();
   const [kind, setKind] = useState<PanelKind>('shooters');
   const [teamFilter, setTeamFilter] = useState<TeamFilter>('all');
 
@@ -48,29 +52,15 @@ export const PlayersPanel = ({
     <div className="space-y-2">
       {/* Kind tabs */}
       <div className="rounded-lg border border-border bg-surface p-1 flex gap-1">
-        <KindTab label="🎯 Tiradores" count={shooters.length} active={kind === 'shooters'} onClick={() => setKind('shooters')} />
-        <KindTab label="🧤 Arqueros"  count={goalkeepers.length} active={kind === 'goalkeepers'} onClick={() => setKind('goalkeepers')} />
+        <KindTab label={`🎯 ${t.analysis_shooters}`} count={shooters.length} active={kind === 'shooters'} onClick={() => setKind('shooters')} />
+        <KindTab label={`🧤 ${t.analysis_goalkeepers}`}  count={goalkeepers.length} active={kind === 'goalkeepers'} onClick={() => setKind('goalkeepers')} />
       </div>
 
       {/* Team filter */}
       <div className="flex gap-1 text-[10px]">
-        <TeamChip
-          label="Todos"
-          active={teamFilter === 'all'}
-          onClick={() => setTeamFilter('all')}
-        />
-        <TeamChip
-          label={home}
-          color={homeColor}
-          active={teamFilter === 'home'}
-          onClick={() => setTeamFilter('home')}
-        />
-        <TeamChip
-          label={away}
-          color={awayColor}
-          active={teamFilter === 'away'}
-          onClick={() => setTeamFilter('away')}
-        />
+        <TeamChip label={t.analysis_all_teams} active={teamFilter === 'all'} onClick={() => setTeamFilter('all')} />
+        <TeamChip label={home} color={homeColor} active={teamFilter === 'home'} onClick={() => setTeamFilter('home')} />
+        <TeamChip label={away} color={awayColor} active={teamFilter === 'away'} onClick={() => setTeamFilter('away')} />
       </div>
 
       {/* List */}
@@ -140,10 +130,11 @@ const ShooterList = ({
   awayColor: string;
   onToggle: (key: string) => void;
 }) => {
+  const t = useT();
   if (shooters.length === 0) {
     return (
       <div className="rounded-md border border-dashed border-border bg-surface-2/30 py-6 text-center">
-        <p className="text-xs text-muted-fg">Sin tiradores en este filtro</p>
+        <p className="text-xs text-muted-fg">{t.stats_no_shooters}</p>
       </div>
     );
   }
@@ -173,7 +164,7 @@ const ShooterList = ({
               <div className="flex-1 min-w-0 text-left">
                 <div className="text-xs font-medium text-fg truncate">{s.name}</div>
                 <div className="text-[10px] text-muted-fg">
-                  {s.shots} {s.shots === 1 ? 'tiro' : 'tiros'}
+                  {s.shots} {t.stats_shots.toLowerCase()}
                 </div>
               </div>
               <div className="flex items-center gap-2 text-[10px] font-mono tabular">
@@ -191,19 +182,15 @@ const ShooterList = ({
   );
 };
 
-const GoalkeeperList = ({
-  goalkeepers, selectedKey, homeColor, awayColor, onToggle,
-}: {
-  goalkeepers: GoalkeeperSummary[];
-  selectedKey: string | null;
-  homeColor: string;
-  awayColor: string;
-  onToggle: (key: string) => void;
+const GoalkeeperList = ({ goalkeepers, selectedKey, homeColor, awayColor, onToggle }: {
+  goalkeepers: GoalkeeperSummary[]; selectedKey: string | null;
+  homeColor: string; awayColor: string; onToggle: (key: string) => void;
 }) => {
+  const t = useT();
   if (goalkeepers.length === 0) {
     return (
       <div className="rounded-md border border-dashed border-border bg-surface-2/30 py-6 text-center">
-        <p className="text-xs text-muted-fg">Sin arqueros identificados</p>
+        <p className="text-xs text-muted-fg">{t.stats_no_shooters}</p>
       </div>
     );
   }

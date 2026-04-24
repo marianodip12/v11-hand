@@ -20,6 +20,7 @@ import type {
   Team,
 } from '@/domain/types';
 import { useMatchStore } from '@/lib/store';
+import { useT } from '@/lib/i18n';
 import { cn } from '@/lib/cn';
 import { Scoreboard } from './scoreboard';
 import { PlayerPicker, type PickerKind } from './player-picker';
@@ -106,6 +107,7 @@ interface PendingTagged {
 
 export const LiveMatchPage = () => {
   const navigate = useNavigate();
+  const t = useT();
 
   const status      = useMatchStore((s) => s.status);
   const match       = useMatchStore((s) => s.liveMatch);
@@ -324,13 +326,13 @@ export const LiveMatchPage = () => {
   }, [pendingShot, pendingTagged, teams, match, events]);
 
   const handleFinish = () => {
-    if (window.confirm('¿Finalizar el partido y guardarlo?')) {
+    if (window.confirm(t.live_finish_confirm)) {
       finishLive();
       navigate('/');
     }
   };
   const handleDiscard = () => {
-    if (window.confirm('¿Descartar el partido en curso? No se podrá recuperar.')) {
+    if (window.confirm(t.live_discard_confirm)) {
       closeLive();
       navigate('/');
     }
@@ -395,7 +397,7 @@ export const LiveMatchPage = () => {
               mode === m ? 'bg-primary/20 text-primary' : 'text-muted-fg hover:text-fg',
             )}
           >
-            {m === 'full' ? 'Completo' : 'Rápido'}
+            {m === 'full' ? t.live_mode_full : t.live_mode_quick}
           </button>
         ))}
       </div>
@@ -404,7 +406,7 @@ export const LiveMatchPage = () => {
       <section>
         <div className="flex items-center gap-2 mb-1.5">
           <StepNumber n={1} />
-          <h3 className="text-xs font-medium text-fg">🎯 ¿A qué cuadrante fue?</h3>
+          <h3 className="text-xs font-medium text-fg">{t.live_step1}</h3>
         </div>
         <div className="max-w-sm md:max-w-md mx-auto">
           <GoalGrid
@@ -414,7 +416,7 @@ export const LiveMatchPage = () => {
         </div>
         <div className="grid grid-cols-2 gap-1.5 mt-2 max-w-sm md:max-w-md mx-auto">
           <OutcomeExtraButton
-            label="Fuera"
+            label={t.live_fuera}
             active={false}
             tone="neutral"
             onClick={() => {
@@ -435,7 +437,7 @@ export const LiveMatchPage = () => {
             }}
           />
           <OutcomeExtraButton
-            label="Palo"
+            label={t.live_palo}
             active={false}
             tone="warning"
             onClick={() => {
@@ -461,7 +463,7 @@ export const LiveMatchPage = () => {
       <section>
         <div className="flex items-center gap-2 mb-1.5">
           <StepNumber n={2} />
-          <h3 className="text-xs font-medium text-fg">🏐 ¿Desde dónde tiró?</h3>
+          <h3 className="text-xs font-medium text-fg">{t.live_step2}</h3>
         </div>
         <div className="max-w-sm md:max-w-md mx-auto">
           <CourtView
@@ -478,7 +480,7 @@ export const LiveMatchPage = () => {
                 : 'border-card/30 bg-card/5 text-card/80 hover:bg-card/10',
             )}
           >
-            🎯 Arco a Arco
+            {t.live_arco_a_arco}
           </button>
         </div>
       </section>
@@ -486,7 +488,7 @@ export const LiveMatchPage = () => {
       {/* Non-shot events (no big shot CTAs anymore) */}
       <section>
         <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-fg mb-1.5">
-          Otros eventos
+          {t.live_other_events}
         </div>
         <div className="grid grid-cols-4 gap-1.5">
           <Button
@@ -566,10 +568,10 @@ export const LiveMatchPage = () => {
 
       <section className="flex gap-2 pt-2">
         <Button variant="danger" size="sm" onClick={handleDiscard} className="flex-1">
-          Descartar
+          {t.live_discard}
         </Button>
         <Button onClick={handleFinish} className="flex-[2]">
-          Finalizar partido
+          {t.live_finish}
         </Button>
       </section>
 

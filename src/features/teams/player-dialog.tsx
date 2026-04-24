@@ -1,3 +1,4 @@
+import { useT } from '@/lib/i18n';
 import { useEffect, useState } from 'react';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -15,13 +16,8 @@ export interface PlayerDialogProps {
   onSave: (player: Player) => void;
 }
 
-export const PlayerDialog = ({
-  open,
-  onClose,
-  allPlayers,
-  editingPlayer,
-  onSave,
-}: PlayerDialogProps) => {
+export const PlayerDialog = ({ open, onClose, allPlayers, editingPlayer, onSave }: PlayerDialogProps) => {
+  const t = useT();
   const [name, setName] = useState('');
   const [numberStr, setNumberStr] = useState('');
   const [position, setPosition] = useState<string>(POSITIONS[0]);
@@ -66,7 +62,7 @@ export const PlayerDialog = ({
     >
       <div className="flex flex-col gap-4">
         <section>
-          <Label htmlFor="p-name">Nombre</Label>
+          <Label htmlFor="p-name">{t.player_dialog_name}</Label>
           <Input
             id="p-name"
             value={name}
@@ -84,7 +80,7 @@ export const PlayerDialog = ({
 
         <div className="grid grid-cols-2 gap-3">
           <section>
-            <Label htmlFor="p-number">Número</Label>
+            <Label htmlFor="p-number">{t.player_dialog_number}</Label>
             <Input
               id="p-number"
               type="number"
@@ -103,7 +99,7 @@ export const PlayerDialog = ({
           </section>
 
           <section>
-            <Label htmlFor="p-pos">Posición</Label>
+            <Label htmlFor="p-pos">{t.player_dialog_position}</Label>
             <Select
               id="p-pos"
               value={position}
@@ -122,7 +118,7 @@ export const PlayerDialog = ({
       </div>
 
       <DialogFooter className="sm:justify-end">
-        <Button variant="ghost" onClick={onClose}>Cancelar</Button>
+        <Button variant="ghost" onClick={onClose}>{t.player_dialog_cancel}</Button>
         <Button onClick={handleSave}>
           {editingPlayer ? 'Guardar' : 'Agregar jugador'}
         </Button>

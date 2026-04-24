@@ -1,3 +1,4 @@
+import { useT } from '@/lib/i18n';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
@@ -17,16 +18,8 @@ export interface ScoreboardProps {
   onClockChange: (clock: ClockState) => void;
 }
 
-export const Scoreboard = ({
-  home,
-  away,
-  homeColor,
-  awayColor,
-  homeScore,
-  awayScore,
-  clock,
-  onClockChange,
-}: ScoreboardProps) => {
+export const Scoreboard = ({ home, away, homeColor, awayColor, homeScore, awayScore, clock, onClockChange }: ScoreboardProps) => {
+  const t = useT();
   const [editOpen, setEditOpen] = useState(false);
 
   // 1-second tick while running. Ref avoids stale closures on rapid toggles.
@@ -87,7 +80,7 @@ export const Scoreboard = ({
             className="flex-1 h-9 text-xs"
           >
             {clock.running ? <PauseIcon /> : <PlayIcon />}
-            {clock.running ? 'Pausar' : 'Iniciar'}
+            {clock.running ? t.live_clock_pause : t.live_clock_start}
           </Button>
           <Button size="sm" variant="ghost" onClick={() => adjust(-30)} className="h-9 px-2.5 text-xs">
             −30s
@@ -153,6 +146,7 @@ interface EditClockDialogProps {
 }
 
 const EditClockDialog = ({ open, onClose, clock, onSave }: EditClockDialogProps) => {
+  const t = useT();
   const [minStr, setMinStr] = useState('0');
   const [secStr, setSecStr] = useState('0');
   const [half, setHalf] = useState<Half>(1);
@@ -216,8 +210,8 @@ const EditClockDialog = ({ open, onClose, clock, onSave }: EditClockDialogProps)
         </Select>
       </div>
       <DialogFooter className="sm:justify-end">
-        <Button variant="ghost" onClick={onClose}>Cancelar</Button>
-        <Button onClick={handleSave}>Guardar</Button>
+        <Button variant="ghost" onClick={onClose}>{t.team_dialog_cancel}</Button>
+        <Button onClick={handleSave}>{t.team_dialog_save}</Button>
       </DialogFooter>
     </Dialog>
   );

@@ -1,3 +1,4 @@
+import { useT } from '@/lib/i18n';
 import { useEffect, useMemo, useState } from 'react';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -35,6 +36,7 @@ export const PlayerPicker = ({
   kind,
   allowSkip = true,
 }: PlayerPickerProps) => {
+  const t = useT();
   const [freeNumber, setFreeNumber] = useState('');
   const [freeName, setFreeName] = useState('');
 
@@ -57,7 +59,6 @@ export const PlayerPicker = ({
     return byPos;
   }, [players]);
 
-  // Dedup by number — most recent tag wins (keeps the name fresh).
   const adhocDeduped = useMemo(() => {
     const byNumber = new Map<number, PersonRef>();
     for (const p of adhocPlayers) byNumber.set(p.number, p);
@@ -65,12 +66,12 @@ export const PlayerPicker = ({
   }, [adhocPlayers]);
 
   const title =
-    kind === 'goalkeeper' ? '¿Qué arquero?' :
-    kind === 'sanctioned' ? '¿A qué jugador?' :
-                            '¿Quién tiró?';
+    kind === 'goalkeeper' ? (t.live_title === 'En Vivo' ? '¿Qué arquero?' : t.live_title === 'Live' ? 'Which goalkeeper?' : 'Qual goleiro?') :
+    kind === 'sanctioned' ? (t.live_title === 'En Vivo' ? '¿A qué jugador?' : t.live_title === 'Live' ? 'Which player?' : 'Qual jogador?') :
+                            (t.live_title === 'En Vivo' ? '¿Quién tiró?' : t.live_title === 'Live' ? 'Who shot?' : 'Quem arremessou?');
 
   const description = teamName
-    ? `${teamName}${players.length > 0 ? ` · ${players.length} ${players.length === 1 ? 'jugador' : 'jugadores'}` : ''}`
+    ? `${teamName}${players.length > 0 ? ` · ${players.length} ${t.player_dialog_name.toLowerCase()}s` : ''}`
     : undefined;
 
   const handleFreeText = () => {
@@ -109,7 +110,7 @@ export const PlayerPicker = ({
           {adhocDeduped.length > 0 && (
             <section>
               <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-fg mb-1">
-                Ya cargados en este partido
+                {t.picker_loaded}
               </div>
               <div className="grid grid-cols-5 gap-1.5">
                 {adhocDeduped.map((p) => (
@@ -127,11 +128,11 @@ export const PlayerPicker = ({
 
           <section>
             <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-fg mb-1">
-              Nuevo
+              {t.picker_new}
             </div>
             <div className="grid grid-cols-[auto_1fr] gap-2">
               <div>
-                <Label>Número</Label>
+                <Label>{t.player_dialog_number}</Label>
                 <Input
                   type="number"
                   min={1}
@@ -143,7 +144,7 @@ export const PlayerPicker = ({
                 />
               </div>
               <div>
-                <Label>Nombre (opcional)</Label>
+                <Label>{t.picker_name_optional}</Label>
                 <Input
                   value={freeName}
                   onChange={(e) => setFreeName(e.target.value)}
@@ -153,7 +154,7 @@ export const PlayerPicker = ({
               </div>
             </div>
             <Button onClick={handleFreeText} disabled={!freeNumber} className="mt-2 w-full">
-              Agregar
+              {t.picker_add}
             </Button>
           </section>
         </div>

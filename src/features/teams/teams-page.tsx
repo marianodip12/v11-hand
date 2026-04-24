@@ -7,11 +7,13 @@ import { MaxWidthContainer, Stack } from '@/components/ui/responsive-grid';
 import { sortedPlayers } from '@/domain/teams';
 import type { HandballTeam, Player } from '@/domain/types';
 import { selectHomeTeam, useMatchStore } from '@/lib/store';
+import { useT } from '@/lib/i18n';
 import { cn } from '@/lib/cn';
 import { TeamDialog } from './team-dialog';
 import { PlayerDialog } from './player-dialog';
 
 export const TeamsPage = () => {
+  const t = useT();
   const teams        = useMatchStore((s) => s.teams);
   const myTeam       = useMatchStore(selectHomeTeam);
   const selectedId   = useMatchStore((s) => s.selectedTeamId);
@@ -45,26 +47,15 @@ export const TeamsPage = () => {
     setTeamDialogOpen(false);
   };
   const handleDeleteTeam = (team: HandballTeam) => {
-    const msg =
-      team.players.length > 0
-        ? `¿Eliminar ${team.name}? Se borrarán también sus ${team.players.length} jugador${team.players.length === 1 ? '' : 'es'}.`
-        : `¿Eliminar ${team.name}?`;
+    const msg = team.players.length > 0
+      ? `¿Eliminar ${team.name}? Se borrarán sus ${team.players.length} jugador${team.players.length === 1 ? '' : 'es'}.`
+      : `¿Eliminar ${team.name}?`;
     if (window.confirm(msg)) removeTeam(team.id);
   };
 
-  const openCreatePlayer = () => {
-    setEditingPlayer(null);
-    setPlayerDialogOpen(true);
-  };
-  const openEditPlayer = (p: Player) => {
-    setEditingPlayer(p);
-    setPlayerDialogOpen(true);
-  };
-  const handleSavePlayer = (p: Player) => {
-    if (!myTeam) return;
-    upsertPlayer(myTeam.id, p);
-    setPlayerDialogOpen(false);
-  };
+  const openCreatePlayer = () => { setEditingPlayer(null); setPlayerDialogOpen(true); };
+  const openEditPlayer = (p: Player) => { setEditingPlayer(p); setPlayerDialogOpen(true); };
+  const handleSavePlayer = (p: Player) => { if (!myTeam) return; upsertPlayer(myTeam.id, p); setPlayerDialogOpen(false); };
   const handleDeletePlayer = (p: Player) => {
     if (!myTeam) return;
     if (window.confirm(`¿Eliminar a ${p.name}?`)) removePlayer(myTeam.id, p.id);
@@ -78,30 +69,24 @@ export const TeamsPage = () => {
             <div className="text-[10px] font-semibold tracking-[3px] uppercase text-primary mb-1">
               Handball Pro
             </div>
-            <h1 className="text-3xl md:text-4xl font-semibold leading-tight">👥 Equipos</h1>
+            <h1 className="text-3xl md:text-4xl font-semibold leading-tight">{t.teams_title}</h1>
             <p className="text-xs text-muted-fg mt-1">
-            {teams.length === 0
-              ? 'Creá tu primer equipo para empezar'
-              : `${teams.length} ${teams.length === 1 ? 'equipo' : 'equipos'}`}
-          </p>
-        </div>
-        <Button size="sm" onClick={openCreateTeam}>
-          <PlusIcon /> Nuevo
-        </Button>
-      </header>
+              {teams.length === 0 ? t.teams_empty_desc : `${teams.length} ${teams.length === 1 ? 'equipo' : 'equipos'}`}
+            </p>
+          </div>
+          <Button size="sm" onClick={openCreateTeam}>
+            <PlusIcon /> {t.teams_new}
+          </Button>
+        </header>
 
-      {teams.length === 0 ? (
-        <EmptyState
-          icon={<TeamIcon />}
-          title="Sin equipos cargados"
-          description="Necesitás al menos un equipo para registrar partidos. Te lleva menos de un minuto."
-          action={
-            <Button onClick={openCreateTeam}>
-              <PlusIcon /> Crear mi primer equipo
-            </Button>
-          }
-        />
-      ) : (
+        {teams.length === 0 ? (
+          <EmptyState
+            icon={<TeamIcon />}
+            title={t.teams_empty_title}
+            description={t.teams_empty_desc}
+            action={<Button onClick={openCreateTeam}><PlusIcon /> {t.teams_create_first}</Button>}
+          />
+        ) : (
         <>
           {/* Team switcher — horizontal scroll */}
           <div className="-mx-4 px-4 overflow-x-auto">
@@ -156,7 +141,7 @@ export const TeamsPage = () => {
                       variant="ghost"
                       size="icon"
                       onClick={() => openEditTeam(myTeam)}
-                      aria-label="Editar equipo"
+                      aria-label={t.team_dialog_edit}
                     >
                       <PencilIcon />
                     </Button>
@@ -165,7 +150,7 @@ export const TeamsPage = () => {
                       size="icon"
                       onClick={() => handleDeleteTeam(myTeam)}
                       className="text-danger hover:bg-danger/10"
-                      aria-label="Eliminar equipo"
+                      aria-label={t.team_dialog_delete}
                     >
                       <TrashIcon />
                     </Button>
@@ -189,13 +174,13 @@ export const TeamsPage = () => {
 
                 {players.length === 0 ? (
                   <div className="rounded-md border border-dashed border-border bg-surface-2/30 py-8 text-center">
-                    <p className="text-sm text-muted-fg">Sin jugadores cargados</p>
+                    <p className="text-sm text-muted-fg">{t.teams_no_players}</p>
                     <button
                       type="button"
                       onClick={openCreatePlayer}
                       className="mt-2 text-xs text-primary hover:underline"
                     >
-                      Agregar el primero
+                      {t.teams_add_first}
                     </button>
                   </div>
                 ) : (

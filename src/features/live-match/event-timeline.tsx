@@ -1,3 +1,4 @@
+import { useT } from '@/lib/i18n';
 import { EVENT_TYPES } from '@/domain/constants';
 import type { HandballEvent } from '@/domain/types';
 import { cn } from '@/lib/cn';
@@ -9,39 +10,29 @@ export interface EventTimelineProps {
   onDelete: (id: string) => void;
 }
 
-export const EventTimeline = ({
-  events,
-  homeColor,
-  awayColor,
-  onDelete,
-}: EventTimelineProps) => {
+export const EventTimeline = ({ events, homeColor, awayColor, onDelete }: EventTimelineProps) => {
+  const t = useT();
   if (events.length === 0) {
     return (
       <div className="rounded-lg border border-border bg-surface p-4 text-center">
-        <p className="text-xs text-muted-fg">Aún no hay eventos registrados</p>
+        <p className="text-xs text-muted-fg">{t.live_no_events}</p>
       </div>
     );
   }
 
-  // Most recent first
   const sorted = [...events].sort((a, b) => b.min - a.min);
 
   return (
     <div className="rounded-lg border border-border bg-surface overflow-hidden">
       <div className="px-3 py-2 border-b border-border flex items-center justify-between">
         <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-fg">
-          Últimos eventos
+          {t.live_timeline_title}
         </span>
         <span className="text-[10px] text-muted-fg tabular">{events.length} total</span>
       </div>
       <ul className="max-h-[240px] overflow-y-auto divide-y divide-border">
         {sorted.map((e) => (
-          <EventRow
-            key={e.id}
-            event={e}
-            color={e.team === 'home' ? homeColor : awayColor}
-            onDelete={() => onDelete(e.id)}
-          />
+          <EventRow key={e.id} event={e} color={e.team === 'home' ? homeColor : awayColor} onDelete={() => onDelete(e.id)} />
         ))}
       </ul>
     </div>

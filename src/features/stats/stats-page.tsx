@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/feedback';
+import { useT } from '@/lib/i18n';
 import {
   EMPTY_SEASON_FILTER,
   computeSeasonTotals,
@@ -16,6 +17,7 @@ import { cn } from '@/lib/cn';
 type StatsView = 'resumen' | 'jugadores';
 
 export const StatsPage = () => {
+  const t = useT();
   const navigate = useNavigate();
   const completed = useMatchStore((s) => s.completed);
   const myTeam = useMatchStore(selectHomeTeam);
@@ -33,7 +35,7 @@ export const StatsPage = () => {
     return (
       <div className="space-y-4">
         <header>
-          <h1 className="text-2xl font-semibold leading-tight">📊 Stats</h1>
+          <h1 className="text-2xl font-semibold leading-tight">{t.stats_title} Stats</h1>
         </header>
         <EmptyState
           title="Sin equipo propio"
@@ -51,11 +53,11 @@ export const StatsPage = () => {
     return (
       <div className="space-y-4">
         <header>
-          <h1 className="text-2xl font-semibold leading-tight">📊 Stats</h1>
+          <h1 className="text-2xl font-semibold leading-tight">{t.stats_title} Stats</h1>
         </header>
         <EmptyState
-          title="Sin partidos de tu equipo"
-          description="Completá partidos donde juegue tu equipo para ver agregados."
+          title={t.evo_no_matches_title}
+          description={t.evo_no_matches_desc}
           action={<Button onClick={() => navigate('/')}>Ir a Partidos</Button>}
         />
       </div>
@@ -75,19 +77,19 @@ export const StatsPage = () => {
           </div>
           <h1 className="text-3xl font-semibold leading-tight md:text-4xl">📊 {myTeam.name}</h1>
           <p className="text-xs text-muted-fg mt-1">
-            {relevant.length} {relevant.length === 1 ? 'partido' : 'partidos'}
+            {relevant.length} {relevant.length === 1 ? t.stats_match : t.stats_matches}
             {competition && ` · ${competition}`}
           </p>
         </header>
 
         <div className="rounded-lg border border-border bg-surface p-1 flex gap-1">
-          <ViewTab label="📋 Resumen"  active={view === 'resumen'}    onClick={() => setView('resumen')} />
-          <ViewTab label="🎯 Jugadores" active={view === 'jugadores'} onClick={() => setView('jugadores')} />
+          <ViewTab label={t.stats_tab_summary}  active={view === 'resumen'}    onClick={() => setView('resumen')} />
+          <ViewTab label={t.stats_tab_players} active={view === 'jugadores'} onClick={() => setView('jugadores')} />
         </div>
 
         {competitions.length > 0 && (
           <div className="flex gap-1 flex-wrap">
-            <CompChip label="Todas" active={competition === null} onClick={() => setCompetition(null)} />
+            <CompChip label={t.stats_all} active={competition === null} onClick={() => setCompetition(null)} />
             {competitions.map((c) => (
               <CompChip key={c} label={c} active={competition === c} onClick={() => setCompetition(c)} />
             ))}
@@ -109,7 +111,9 @@ const ResumenView = ({
 }: {
   totals: ReturnType<typeof computeSeasonTotals>;
   points: ReturnType<typeof toMatchPoints>;
-}) => (
+}) => {
+  const t = useT();
+  return (
   <div className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-3">
     <Card>
       <CardContent className="p-3">
@@ -126,24 +130,24 @@ const ResumenView = ({
       <CardContent className="p-3 space-y-3">
         <div>
           <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-fg mb-2">
-            Ofensivo
+            {t.stats_offensive}
           </div>
           <div className="grid grid-cols-4 gap-2">
-            <StatTile value={totals.goalsFor}       label="Goles"   tone="goal" />
-            <StatTile value={totals.shots}          label="Tiros"   />
-            <StatTile value={`${totals.shotPct}%`}  label="Efect."  tone="goal" />
-            <StatTile value={avg(totals.goalsFor, totals.matchesPlayed)} label="Prom." />
+            <StatTile value={totals.goalsFor}       label={t.stats_goals} tone="goal" />
+            <StatTile value={totals.shots}          label={t.stats_shots} />
+            <StatTile value={`${totals.shotPct}%`}  label={t.stats_pct} tone="goal" />
+            <StatTile value={avg(totals.goalsFor, totals.matchesPlayed)} label={t.stats_avg} />
           </div>
         </div>
         <div>
           <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-fg mb-2">
-            Defensivo
+            {t.stats_defensive}
           </div>
           <div className="grid grid-cols-4 gap-2">
-            <StatTile value={totals.goalsAgainst}      label="Gol contr."      tone="danger" />
-            <StatTile value={totals.ourGKSaves}        label="Ataj. propias"   tone="save" />
-            <StatTile value={`${totals.ourGKPct}%`}    label="% arquero"       tone="save" />
-            <StatTile value={avg(totals.goalsAgainst, totals.matchesPlayed)} label="Prom. rec." />
+            <StatTile value={totals.goalsAgainst}      label={t.stats_goals_against} tone="danger" />
+            <StatTile value={totals.ourGKSaves}        label={t.stats_our_saves} tone="save" />
+            <StatTile value={`${totals.ourGKPct}%`}    label={t.stats_gk_pct} tone="save" />
+            <StatTile value={avg(totals.goalsAgainst, totals.matchesPlayed)} label={t.stats_avg_rec} />
           </div>
         </div>
       </CardContent>
@@ -153,28 +157,30 @@ const ResumenView = ({
       <Card>
         <CardContent className="p-3">
           <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-fg mb-2">
-            Rendimiento por partido
+            {t.stats_tab_summary.replace('📋 ', '')}
           </div>
           <PctBars points={points} />
           <div className="flex items-center justify-center gap-3 text-[10px] text-muted-fg mt-1">
-            <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-goal" /> % tiro</span>
-            <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-primary" /> % arq</span>
+            <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-goal" /> {t.stats_pct} {t.stats_shots.toLowerCase()}</span>
+            <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-primary" /> {t.stats_gk_pct}</span>
           </div>
         </CardContent>
       </Card>
     )}
   </div>
-);
+  );
+};
 
 const JugadoresView = ({
   scorers,
 }: {
   scorers: ReturnType<typeof topScorers>;
 }) => {
+  const t = useT();
   if (scorers.length === 0) {
     return (
       <div className="rounded-md border border-dashed border-border bg-surface-2/30 py-8 text-center">
-        <p className="text-xs text-muted-fg">Sin tiradores identificados</p>
+        <p className="text-xs text-muted-fg">{t.stats_no_shooters}</p>
       </div>
     );
   }
@@ -193,7 +199,7 @@ const JugadoresView = ({
             <div className="flex-1 min-w-0">
               <div className="text-xs font-medium truncate">{s.name}</div>
               <div className="text-[10px] text-muted-fg">
-                {s.matches} {s.matches === 1 ? 'partido' : 'partidos'} · {s.shots} tiros
+                {s.matches} {s.matches === 1 ? t.stats_match : t.stats_matches} · {s.shots} {t.stats_shots.toLowerCase()}
               </div>
               <div className="h-1.5 bg-surface rounded-full overflow-hidden mt-1">
                 <div

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/feedback';
 import { Stack, MaxWidthContainer } from '@/components/ui/responsive-grid';
+import { useT } from '@/lib/i18n';
 import {
   keyMoments,
   longestRun,
@@ -20,6 +21,7 @@ import { cn } from '@/lib/cn';
 type ViewKind = 'season' | 'match';
 
 export const EvolutionPage = () => {
+  const t = useT();
   const navigate = useNavigate();
   const completed = useMatchStore((s) => s.completed);
   const myTeam = useMatchStore(selectHomeTeam);
@@ -43,9 +45,9 @@ export const EvolutionPage = () => {
           <p className="text-xs text-muted-fg mt-1">Tu evolución a lo largo de la temporada.</p>
         </header>
         <EmptyState
-          title="Sin equipo propio"
-          description="Definí tu equipo en Equipos para ver tu evolución en la temporada."
-          action={<Button onClick={() => navigate('/teams')}>Ir a Equipos</Button>}
+          title={t.evo_no_team_title}
+          description={t.evo_no_team_desc}
+          action={<Button onClick={() => navigate('/teams')}>{t.common_go_teams}</Button>}
         />
       </div>
     );
@@ -58,9 +60,9 @@ export const EvolutionPage = () => {
           <h1 className="text-2xl font-semibold leading-tight">📈 Evolución</h1>
         </header>
         <EmptyState
-          title="Sin partidos completados"
-          description="Completá al menos un partido para ver la evolución."
-          action={<Button onClick={() => navigate('/')}>Ir a Partidos</Button>}
+          title={t.evo_no_matches_title}
+          description={t.evo_no_matches_desc}
+          action={<Button onClick={() => navigate('/')}>{t.common_go_matches}</Button>}
         />
       </div>
     );
@@ -78,8 +80,8 @@ export const EvolutionPage = () => {
 
         {/* View tabs */}
         <div className="rounded-lg border border-border bg-surface p-1 flex gap-1">
-          <ViewTab label="🏆 Temporada" active={view === 'season'} onClick={() => setView('season')} />
-          <ViewTab label="🎯 Por partido" active={view === 'match'} onClick={() => setView('match')} />
+          <ViewTab label={t.evo_tab_season} active={view === 'season'} onClick={() => setView('season')} />
+          <ViewTab label={t.evo_tab_match} active={view === 'match'} onClick={() => setView('match')} />
         </div>
 
         {view === 'season' ? (
@@ -103,17 +105,10 @@ export const EvolutionPage = () => {
 
 // ─── Season view ─────────────────────────────────────────────────────
 
-const SeasonView = ({
-  matches,
-  myTeamName,
-  myColor,
-  onOpenMatch,
-}: {
-  matches: MatchSummary[];
-  myTeamName: string;
-  myColor: string;
-  onOpenMatch: (id: string) => void;
+const SeasonView = ({ matches, myTeamName, myColor, onOpenMatch }: {
+  matches: MatchSummary[]; myTeamName: string; myColor: string; onOpenMatch: (id: string) => void;
 }) => {
+  const t = useT();
   const timeline = useMemo(() => seasonTimeline(matches, myTeamName), [matches, myTeamName]);
   const totals = useMemo(() => seasonTotals(matches, myTeamName), [matches, myTeamName]);
 
@@ -135,7 +130,7 @@ const SeasonView = ({
             <SeasonTile value={totals.points}         label="PTS" tone="primary" big />
           </div>
           <div className="text-[10px] text-muted-fg mt-2 text-center">
-            Promedio: {totals.avgFor} a favor · {totals.avgAgainst} en contra
+            {t.stats_avg}: {totals.avgFor} · {totals.avgAgainst}
           </div>
         </CardContent>
       </Card>
@@ -143,7 +138,7 @@ const SeasonView = ({
       {/* Results strip */}
       <div>
         <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-fg mb-1.5">
-          Últimos resultados
+          {t.evo_last_results}
         </div>
         <div className="flex gap-1 flex-wrap">
           {timeline.map((p) => (
@@ -167,7 +162,7 @@ const SeasonView = ({
       <Card>
         <CardContent className="p-3">
           <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-fg mb-2">
-            Diferencia de gol por partido
+            {t.evo_goal_diff}
           </div>
           <DiffBarChart timeline={timeline} myColor={myColor} />
         </CardContent>
@@ -177,7 +172,7 @@ const SeasonView = ({
       <Card>
         <CardContent className="p-3">
           <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-fg mb-2">
-            Puntos acumulados
+            {t.evo_points}
           </div>
           <PointsLine timeline={timeline} myColor={myColor} />
         </CardContent>
@@ -186,7 +181,7 @@ const SeasonView = ({
       {/* Match list */}
       <div>
         <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-fg mb-1.5">
-          Partidos
+          {t.nav_matches}
         </div>
         <ul className="space-y-1.5">
           {[...timeline].reverse().map((p) => (
@@ -215,19 +210,11 @@ const SeasonView = ({
 
 // ─── Match view ──────────────────────────────────────────────────────
 
-const MatchView = ({
-  matches,
-  selectedId,
-  onSelect,
-  myTeamName,
-  myColor,
-}: {
-  matches: MatchSummary[];
-  selectedId: string | null;
-  onSelect: (id: string) => void;
-  myTeamName: string;
-  myColor: string;
+const MatchView = ({ matches, selectedId, onSelect, myTeamName, myColor }: {
+  matches: MatchSummary[]; selectedId: string | null; onSelect: (id: string) => void;
+  myTeamName: string; myColor: string;
 }) => {
+  const t = useT();
   const match = matches.find((m) => m.id === selectedId) ?? matches[0];
   const timeline = useMemo(() => scoreTimeline(match.events), [match]);
   const moments = useMemo(() => keyMoments(match.events), [match]);
@@ -275,7 +262,7 @@ const MatchView = ({
       <Card>
         <CardContent className="p-3">
           <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-fg mb-2">
-            Marcador por minuto
+            {t.evo_score_by_min}
           </div>
           <ScoreChart
             timeline={timeline}
@@ -289,7 +276,7 @@ const MatchView = ({
       <Card>
         <CardContent className="p-3">
           <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-fg mb-2">
-            Diferencia ({isHome ? match.home : match.away})
+            {t.evo_diff_chart} ({isHome ? match.home : match.away})
           </div>
           <DiffChart
             timeline={timeline}
@@ -301,10 +288,14 @@ const MatchView = ({
 
       {/* Key moments */}
       <div className="grid grid-cols-4 gap-2">
-        {moments.map((m) => (
+        {moments.map((m) => {
+          const label = m.minute === 30 ? t.evo_halftime
+            : m.minute === 60 ? t.card_final
+            : m.label;
+          return (
           <Card key={m.minute} className="text-center">
             <CardContent className="p-2">
-              <div className="text-[9px] uppercase tracking-wider text-muted-fg">{m.label}</div>
+              <div className="text-[9px] uppercase tracking-wider text-muted-fg">{label}</div>
               <div className="font-mono text-sm font-semibold tabular mt-1">{m.home}–{m.away}</div>
               <div className={cn(
                 'text-[10px] font-semibold mt-0.5',
@@ -316,7 +307,8 @@ const MatchView = ({
               </div>
             </CardContent>
           </Card>
-        ))}
+          );
+        })}
       </div>
 
       {/* Longest run */}
@@ -324,7 +316,7 @@ const MatchView = ({
         <Card>
           <CardContent className="p-3 flex items-center justify-between">
             <div>
-              <div className="text-[10px] uppercase tracking-wider text-muted-fg">Racha más larga</div>
+              <div className="text-[10px] uppercase tracking-wider text-muted-fg">{t.evo_longest_run}</div>
               <div className="text-sm font-medium text-fg mt-0.5">
                 {run.team === 'home' ? match.home : match.away}
               </div>
@@ -374,7 +366,7 @@ const ScoreChart = ({
   for (let v = 0; v <= maxY; v += 5) gridSteps.push(v);
 
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto" role="img" aria-label="Marcador por minuto">
+    <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto" role="img" aria-label="{t.evo_score_by_min}">
       {/* Grid */}
       {gridSteps.map((v) => (
         <line
@@ -551,7 +543,8 @@ const ViewTab = ({
 );
 
 const ResultBadge = ({ result }: { result: 'win' | 'draw' | 'loss' }) => {
-  const label = result === 'win' ? 'Victoria' : result === 'draw' ? 'Empate' : 'Derrota';
+  const t = useT();
+  const label = result === 'win' ? t.common_victory : result === 'draw' ? t.common_draw : t.common_defeat;
   const tone: 'goal' | 'warning' | 'danger' = result === 'win' ? 'goal' : result === 'draw' ? 'warning' : 'danger';
   return <Badge tone={tone}>{label}</Badge>;
 };

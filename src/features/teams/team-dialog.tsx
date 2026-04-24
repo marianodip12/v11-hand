@@ -1,3 +1,4 @@
+import { useT } from '@/lib/i18n';
 import { useEffect, useState } from 'react';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -16,13 +17,8 @@ export interface TeamDialogProps {
   onSave: (team: HandballTeam) => void;
 }
 
-export const TeamDialog = ({
-  open,
-  onClose,
-  allTeams,
-  editingTeam,
-  onSave,
-}: TeamDialogProps) => {
+export const TeamDialog = ({ open, onClose, allTeams, editingTeam, onSave }: TeamDialogProps) => {
+  const t = useT();
   const [name, setName] = useState('');
   const [color, setColor] = useState(TEAM_COLORS[0]);
   const [touched, setTouched] = useState(false);
@@ -56,12 +52,12 @@ export const TeamDialog = ({
     <Dialog
       open={open}
       onClose={onClose}
-      title={editingTeam ? 'Editar equipo' : 'Nuevo equipo'}
+      title={editingTeam ? t.team_dialog_edit : t.team_dialog_create}
       description={editingTeam ? undefined : 'Cargá tu equipo para empezar a usar la app.'}
     >
       <div className="flex flex-col gap-5">
         <section>
-          <Label htmlFor="team-name">Nombre del equipo</Label>
+          <Label htmlFor="team-name">{t.team_dialog_name}</Label>
           <Input
             id="team-name"
             value={name}
@@ -78,7 +74,7 @@ export const TeamDialog = ({
         </section>
 
         <section>
-          <Label>Color del equipo</Label>
+          <Label>{t.team_dialog_color}</Label>
           <div className="flex flex-wrap gap-2 mt-2">
             {TEAM_COLORS.map((c) => {
               const active = color.toLowerCase() === c.toLowerCase();
@@ -105,9 +101,9 @@ export const TeamDialog = ({
       </div>
 
       <DialogFooter className="sm:justify-end">
-        <Button variant="ghost" onClick={onClose}>Cancelar</Button>
+        <Button variant="ghost" onClick={onClose}>{t.team_dialog_cancel}</Button>
         <Button onClick={handleSave}>
-          {editingTeam ? 'Guardar cambios' : 'Crear equipo'}
+          {editingTeam ? t.team_dialog_save : t.team_dialog_create}
         </Button>
       </DialogFooter>
     </Dialog>

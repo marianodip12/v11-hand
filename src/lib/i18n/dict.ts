@@ -1,9 +1,3 @@
-/**
- * i18n — Lightweight internationalization for Handball Pro.
- * No external library — just a typed dictionary + React context.
- * Languages: Spanish (es), English (en), Portuguese (pt)
- */
-
 export type Locale = 'es' | 'en' | 'pt';
 
 export interface Dict {
@@ -89,6 +83,12 @@ export interface Dict {
   live_fuera: string;
   live_palo: string;
   live_arco_a_arco: string;
+  live_other_events: string;
+  live_turnovers: string;
+  live_excl: string;
+  live_penals: string;
+  live_clock_start: string;
+  live_clock_pause: string;
   live_finish: string;
   live_discard: string;
   live_finish_confirm: string;
@@ -102,6 +102,12 @@ export interface Dict {
   outcome_saved: string;
   outcome_miss: string;
   outcome_post: string;
+
+  // ── Player picker ──────────────────────────────────────────
+  picker_loaded: string;
+  picker_new: string;
+  picker_add: string;
+  picker_name_optional: string;
 
   // ── Stats ──────────────────────────────────────────────────
   stats_title: string;
@@ -158,6 +164,10 @@ export interface Dict {
   analysis_fuera: string;
   analysis_errados: string;
   analysis_efect: string;
+  analysis_event_total: string;
+  analysis_event_match: string;
+  analysis_compare: string;
+  analysis_no_filter: string;
 
   // ── Common ─────────────────────────────────────────────────
   common_go_teams: string;
@@ -176,7 +186,6 @@ const es: Dict = {
   nav_live: 'En Vivo',
   nav_stats: 'Stats',
   nav_evolution: 'Evolución',
-
   matches_title: '🤾 Partidos',
   matches_season: 'Temporada',
   matches_new: 'Nuevo',
@@ -187,7 +196,6 @@ const es: Dict = {
   matches_load_team: 'Cargar equipo',
   live_banner: '● EN VIVO',
   live_go: 'Ir al partido en vivo',
-
   card_final: 'Final',
   card_analyze: 'Análisis',
   card_evolution: 'Evolución',
@@ -195,18 +203,15 @@ const es: Dict = {
   card_win: 'Victoria',
   card_draw: 'Empate',
   card_loss: 'Derrota',
-
   season_label: 'Temporada',
   season_recent: 'Últimos',
-
   new_match_title: 'Nuevo partido',
-  new_match_my_team: 'Tu equipo',
+  new_match_my_team: 'Mi equipo',
   new_match_rival: 'Rival',
   new_match_competition: 'Competición',
   new_match_round: 'Fecha / Jornada',
   new_match_start: 'Comenzar',
   new_match_cancel: 'Cancelar',
-
   teams_title: '👥 Equipos',
   teams_new: 'Nuevo',
   teams_empty_title: 'Sin equipos cargados',
@@ -217,7 +222,6 @@ const es: Dict = {
   teams_no_players: 'Sin jugadores cargados',
   teams_add_first: 'Agregar el primero',
   teams_my_team_badge: 'Mi equipo',
-
   team_dialog_create: 'Nuevo equipo',
   team_dialog_edit: 'Editar equipo',
   team_dialog_name: 'Nombre del equipo',
@@ -233,7 +237,6 @@ const es: Dict = {
   player_dialog_position: 'Posición',
   player_dialog_save: 'Guardar',
   player_dialog_cancel: 'Cancelar',
-
   live_title: 'En Vivo',
   live_mode_full: 'Completo',
   live_mode_quick: 'Rápido',
@@ -245,19 +248,27 @@ const es: Dict = {
   live_fuera: 'Fuera',
   live_palo: 'Palo',
   live_arco_a_arco: '🎯 Arco a Arco',
+  live_other_events: 'Otros eventos',
+  live_turnovers: 'Pérdidas',
+  live_excl: 'Exclusiones',
+  live_penals: 'Penales',
+  live_clock_start: 'Iniciar',
+  live_clock_pause: 'Pausar',
   live_finish: 'Finalizar partido',
   live_discard: 'Descartar',
   live_finish_confirm: '¿Finalizar y guardar el partido?',
   live_discard_confirm: '¿Descartar el partido? Se perderán todos los eventos.',
   live_timeline_title: 'Eventos',
   live_no_events: 'Sin eventos aún',
-
   outcome_title: '¿Qué pasó?',
   outcome_goal: '⚽ Gol',
   outcome_saved: '🧤 Atajada',
   outcome_miss: '❌ Errado',
   outcome_post: '🪵 Palo',
-
+  picker_loaded: 'Ya cargados en este partido',
+  picker_new: 'Nuevo',
+  picker_add: 'Agregar',
+  picker_name_optional: 'Nombre (opcional)',
   stats_title: '📊',
   stats_tab_summary: '📋 Resumen',
   stats_tab_players: '🎯 Jugadores',
@@ -275,7 +286,6 @@ const es: Dict = {
   stats_no_shooters: 'Sin tiradores identificados',
   stats_matches: 'partidos',
   stats_match: 'partido',
-
   evo_title: '📈',
   evo_tab_season: '🏆 Temporada',
   evo_tab_match: '🎯 Por partido',
@@ -291,7 +301,6 @@ const es: Dict = {
   evo_diff_chart: 'Diferencia',
   evo_key_moments: 'Momentos clave',
   evo_halftime: 'Descanso',
-
   analysis_title: '📊 Análisis',
   analysis_back: '← Volver',
   analysis_all_teams: 'Ambos',
@@ -310,7 +319,10 @@ const es: Dict = {
   analysis_fuera: 'Fuera',
   analysis_errados: 'Errados',
   analysis_efect: 'Efect.',
-
+  analysis_event_total: 'eventos en total',
+  analysis_event_match: 'eventos coinciden',
+  analysis_compare: 'Comparativa final',
+  analysis_no_filter: 'sin filtros',
   common_go_teams: 'Ir a Equipos',
   common_go_matches: 'Ir a Partidos',
   common_matches: 'partidos',
@@ -327,7 +339,6 @@ const en: Dict = {
   nav_live: 'Live',
   nav_stats: 'Stats',
   nav_evolution: 'Evolution',
-
   matches_title: '🤾 Matches',
   matches_season: 'Season',
   matches_new: 'New',
@@ -338,7 +349,6 @@ const en: Dict = {
   matches_load_team: 'Load team',
   live_banner: '● LIVE',
   live_go: 'Go to live match',
-
   card_final: 'Final',
   card_analyze: 'Analysis',
   card_evolution: 'Evolution',
@@ -346,10 +356,8 @@ const en: Dict = {
   card_win: 'Win',
   card_draw: 'Draw',
   card_loss: 'Loss',
-
   season_label: 'Season',
   season_recent: 'Last',
-
   new_match_title: 'New match',
   new_match_my_team: 'Your team',
   new_match_rival: 'Opponent',
@@ -357,7 +365,6 @@ const en: Dict = {
   new_match_round: 'Round / Matchday',
   new_match_start: 'Start',
   new_match_cancel: 'Cancel',
-
   teams_title: '👥 Teams',
   teams_new: 'New',
   teams_empty_title: 'No teams loaded',
@@ -368,7 +375,6 @@ const en: Dict = {
   teams_no_players: 'No players loaded',
   teams_add_first: 'Add the first one',
   teams_my_team_badge: 'My team',
-
   team_dialog_create: 'New team',
   team_dialog_edit: 'Edit team',
   team_dialog_name: 'Team name',
@@ -384,7 +390,6 @@ const en: Dict = {
   player_dialog_position: 'Position',
   player_dialog_save: 'Save',
   player_dialog_cancel: 'Cancel',
-
   live_title: 'Live',
   live_mode_full: 'Full',
   live_mode_quick: 'Quick',
@@ -396,19 +401,27 @@ const en: Dict = {
   live_fuera: 'Out',
   live_palo: 'Post',
   live_arco_a_arco: '🎯 Long Range',
+  live_other_events: 'Other events',
+  live_turnovers: 'Turnovers',
+  live_excl: 'Exclusions',
+  live_penals: 'Penalties',
+  live_clock_start: 'Start',
+  live_clock_pause: 'Pause',
   live_finish: 'Finish match',
   live_discard: 'Discard',
   live_finish_confirm: 'Finish and save the match?',
   live_discard_confirm: 'Discard the match? All events will be lost.',
   live_timeline_title: 'Events',
   live_no_events: 'No events yet',
-
   outcome_title: 'What happened?',
   outcome_goal: '⚽ Goal',
   outcome_saved: '🧤 Saved',
   outcome_miss: '❌ Missed',
   outcome_post: '🪵 Post',
-
+  picker_loaded: 'Already tagged this match',
+  picker_new: 'New',
+  picker_add: 'Add',
+  picker_name_optional: 'Name (optional)',
   stats_title: '📊',
   stats_tab_summary: '📋 Summary',
   stats_tab_players: '🎯 Players',
@@ -426,12 +439,11 @@ const en: Dict = {
   stats_no_shooters: 'No shooters identified',
   stats_matches: 'matches',
   stats_match: 'match',
-
   evo_title: '📈',
   evo_tab_season: '🏆 Season',
   evo_tab_match: '🎯 By match',
   evo_no_team_title: 'No home team',
-  evo_no_team_desc: 'Set your team in Teams to view season evolution.',
+  evo_no_team_desc: 'Set your team in Teams to view evolution.',
   evo_no_matches_title: 'No completed matches',
   evo_no_matches_desc: 'Complete at least one match to see evolution.',
   evo_last_results: 'Last results',
@@ -442,7 +454,6 @@ const en: Dict = {
   evo_diff_chart: 'Difference',
   evo_key_moments: 'Key moments',
   evo_halftime: 'Half-time',
-
   analysis_title: '📊 Analysis',
   analysis_back: '← Back',
   analysis_all_teams: 'Both',
@@ -461,7 +472,10 @@ const en: Dict = {
   analysis_fuera: 'Out',
   analysis_errados: 'Missed',
   analysis_efect: 'Effic.',
-
+  analysis_event_total: 'events total',
+  analysis_event_match: 'events match',
+  analysis_compare: 'Final comparison',
+  analysis_no_filter: 'no filters',
   common_go_teams: 'Go to Teams',
   common_go_matches: 'Go to Matches',
   common_matches: 'matches',
@@ -478,7 +492,6 @@ const pt: Dict = {
   nav_live: 'Ao Vivo',
   nav_stats: 'Stats',
   nav_evolution: 'Evolução',
-
   matches_title: '🤾 Jogos',
   matches_season: 'Temporada',
   matches_new: 'Novo',
@@ -489,7 +502,6 @@ const pt: Dict = {
   matches_load_team: 'Carregar equipe',
   live_banner: '● AO VIVO',
   live_go: 'Ir para o jogo ao vivo',
-
   card_final: 'Final',
   card_analyze: 'Análise',
   card_evolution: 'Evolução',
@@ -497,10 +509,8 @@ const pt: Dict = {
   card_win: 'Vitória',
   card_draw: 'Empate',
   card_loss: 'Derrota',
-
   season_label: 'Temporada',
   season_recent: 'Últimos',
-
   new_match_title: 'Novo jogo',
   new_match_my_team: 'Seu time',
   new_match_rival: 'Adversário',
@@ -508,7 +518,6 @@ const pt: Dict = {
   new_match_round: 'Rodada',
   new_match_start: 'Começar',
   new_match_cancel: 'Cancelar',
-
   teams_title: '👥 Equipes',
   teams_new: 'Nova',
   teams_empty_title: 'Sem equipes carregadas',
@@ -519,7 +528,6 @@ const pt: Dict = {
   teams_no_players: 'Sem jogadores carregados',
   teams_add_first: 'Adicionar o primeiro',
   teams_my_team_badge: 'Meu time',
-
   team_dialog_create: 'Nova equipe',
   team_dialog_edit: 'Editar equipe',
   team_dialog_name: 'Nome da equipe',
@@ -535,7 +543,6 @@ const pt: Dict = {
   player_dialog_position: 'Posição',
   player_dialog_save: 'Salvar',
   player_dialog_cancel: 'Cancelar',
-
   live_title: 'Ao Vivo',
   live_mode_full: 'Completo',
   live_mode_quick: 'Rápido',
@@ -547,19 +554,27 @@ const pt: Dict = {
   live_fuera: 'Fora',
   live_palo: 'Trave',
   live_arco_a_arco: '🎯 Longo Alcance',
+  live_other_events: 'Outros eventos',
+  live_turnovers: 'Perdas',
+  live_excl: 'Exclusões',
+  live_penals: 'Penalidades',
+  live_clock_start: 'Iniciar',
+  live_clock_pause: 'Pausar',
   live_finish: 'Finalizar jogo',
   live_discard: 'Descartar',
   live_finish_confirm: 'Finalizar e salvar o jogo?',
   live_discard_confirm: 'Descartar o jogo? Todos os eventos serão perdidos.',
   live_timeline_title: 'Eventos',
   live_no_events: 'Sem eventos ainda',
-
   outcome_title: 'O que aconteceu?',
   outcome_goal: '⚽ Gol',
   outcome_saved: '🧤 Defesa',
   outcome_miss: '❌ Errado',
   outcome_post: '🪵 Trave',
-
+  picker_loaded: 'Já registrados neste jogo',
+  picker_new: 'Novo',
+  picker_add: 'Adicionar',
+  picker_name_optional: 'Nome (opcional)',
   stats_title: '📊',
   stats_tab_summary: '📋 Resumo',
   stats_tab_players: '🎯 Jogadores',
@@ -568,7 +583,7 @@ const pt: Dict = {
   stats_defensive: 'Defensivo',
   stats_goals: 'Gols',
   stats_shots: 'Arremessos',
-  stats_pct: 'Eficiência',
+  stats_pct: 'Efic.',
   stats_avg: 'Média',
   stats_goals_against: 'Gols contr.',
   stats_our_saves: 'Defesas',
@@ -577,7 +592,6 @@ const pt: Dict = {
   stats_no_shooters: 'Sem atiradores identificados',
   stats_matches: 'jogos',
   stats_match: 'jogo',
-
   evo_title: '📈',
   evo_tab_season: '🏆 Temporada',
   evo_tab_match: '🎯 Por jogo',
@@ -593,7 +607,6 @@ const pt: Dict = {
   evo_diff_chart: 'Diferença',
   evo_key_moments: 'Momentos chave',
   evo_halftime: 'Intervalo',
-
   analysis_title: '📊 Análise',
   analysis_back: '← Voltar',
   analysis_all_teams: 'Ambos',
@@ -612,7 +625,10 @@ const pt: Dict = {
   analysis_fuera: 'Fora',
   analysis_errados: 'Errados',
   analysis_efect: 'Efic.',
-
+  analysis_event_total: 'eventos no total',
+  analysis_event_match: 'eventos coincidem',
+  analysis_compare: 'Comparativo final',
+  analysis_no_filter: 'sem filtros',
   common_go_teams: 'Ir a Equipes',
   common_go_matches: 'Ir a Jogos',
   common_matches: 'jogos',

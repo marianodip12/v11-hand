@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import type { MatchSummary } from '@/domain/types';
 import { buildSeasonStats } from '@/domain/stats';
+import { useT } from '@/lib/i18n';
 import { cn } from '@/lib/cn';
 
 export interface SeasonSummaryProps {
@@ -30,6 +31,8 @@ export const SeasonSummary = ({
   myTeamName,
   className,
 }: SeasonSummaryProps) => {
+  const t = useT();
+
   const season = useMemo(
     () => buildSeasonStats(completedMatches, myTeamName),
     [completedMatches, myTeamName],
@@ -67,7 +70,7 @@ export const SeasonSummary = ({
       <CardHeader>
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-medium text-fg">{myTeamName}</h3>
-          <span className="text-[10px] uppercase tracking-wider text-muted-fg">Temporada</span>
+          <span className="text-[10px] uppercase tracking-wider text-muted-fg">{t.season_label}</span>
         </div>
       </CardHeader>
       <CardContent className="pt-0">
@@ -95,7 +98,7 @@ export const SeasonSummary = ({
         {recent.length > 0 && (
           <div className="mt-4">
             <div className="text-[10px] uppercase tracking-wider text-muted-fg mb-1.5">
-              Últimos {recent.length}
+              {t.season_recent} {recent.length}
             </div>
             <div className="flex gap-1.5">
               {recent.map((r) => {
