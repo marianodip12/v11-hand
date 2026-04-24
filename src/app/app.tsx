@@ -7,6 +7,7 @@ import { LiveMatchPage } from '@/features/live-match/live-match-page';
 import { MatchAnalysisPage } from '@/features/match-analysis/match-analysis-page';
 import { StatsPage } from '@/features/stats/stats-page';
 import { EvolutionPage } from '@/features/evolution/evolution-page';
+import { I18nProvider } from '@/lib/i18n';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -35,7 +36,9 @@ const router = createBrowserRouter([
 ]);
 
 export const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <RouterProvider router={router} />
-  </QueryClientProvider>
+  <I18nProvider>
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>
+  </I18nProvider>
 );

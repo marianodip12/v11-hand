@@ -406,11 +406,13 @@ export const LiveMatchPage = () => {
           <StepNumber n={1} />
           <h3 className="text-xs font-medium text-fg">🎯 ¿A qué cuadrante fue?</h3>
         </div>
-        <GoalGrid
-          selected={draft.goalZone}
-          onSelect={handleGoalZoneTap}
-        />
-        <div className="grid grid-cols-2 gap-1.5 mt-2">
+        <div className="max-w-sm md:max-w-md mx-auto">
+          <GoalGrid
+            selected={draft.goalZone}
+            onSelect={handleGoalZoneTap}
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-1.5 mt-2 max-w-sm md:max-w-md mx-auto">
           <OutcomeExtraButton
             label="Fuera"
             active={false}
@@ -461,22 +463,24 @@ export const LiveMatchPage = () => {
           <StepNumber n={2} />
           <h3 className="text-xs font-medium text-fg">🏐 ¿Desde dónde tiró?</h3>
         </div>
-        <CourtView
-          selectedZone={draft.courtZone === 'long_range' ? null : draft.courtZone}
-          onZoneSelect={handleCourtZoneTap}
-        />
-        <button
-          type="button"
-          onClick={() => handleCourtZoneTap(longRangeActive ? null : 'long_range')}
-          className={cn(
-            'mt-2 w-full h-10 rounded-md border text-xs font-medium transition-colors duration-fast touch-target',
-            longRangeActive
-              ? 'border-card/60 bg-card/20 text-card'
-              : 'border-card/30 bg-card/5 text-card/80 hover:bg-card/10',
-          )}
-        >
-          🎯 Arco a Arco
-        </button>
+        <div className="max-w-sm md:max-w-md mx-auto">
+          <CourtView
+            selectedZone={draft.courtZone === 'long_range' ? null : draft.courtZone}
+            onZoneSelect={handleCourtZoneTap}
+          />
+          <button
+            type="button"
+            onClick={() => handleCourtZoneTap(longRangeActive ? null : 'long_range')}
+            className={cn(
+              'mt-2 w-full h-10 rounded-md border text-xs font-medium transition-colors duration-fast touch-target',
+              longRangeActive
+                ? 'border-card/60 bg-card/20 text-card'
+                : 'border-card/30 bg-card/5 text-card/80 hover:bg-card/10',
+            )}
+          >
+            🎯 Arco a Arco
+          </button>
+        </div>
       </section>
 
       {/* Non-shot events (no big shot CTAs anymore) */}

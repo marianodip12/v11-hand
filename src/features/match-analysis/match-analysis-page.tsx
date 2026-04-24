@@ -281,19 +281,17 @@ export const MatchAnalysisPage = () => {
             Tocá un cuadrante para filtrar
           </span>
         </div>
-        <GoalGrid
-          counts={quadCounts}
-          selected={filter.quadrant}
-          onSelect={(z) => {
-            // Only quadrants are filter-eligible here — ignore post/out
-            if (!z) {
-              setFilter((f) => ({ ...f, quadrant: null }));
-              return;
-            }
-            if (z === 'post' || z === 'out') return;
-            setFilter((f) => toggleQuadrant(f, z as GoalQuadrantId));
-          }}
-        />
+        <div className="max-w-sm md:max-w-md mx-auto">
+          <GoalGrid
+            counts={quadCounts}
+            selected={filter.quadrant}
+            onSelect={(z) => {
+              if (!z) { setFilter((f) => ({ ...f, quadrant: null })); return; }
+              if (z === 'post' || z === 'out') return;
+              setFilter((f) => toggleQuadrant(f, z as GoalQuadrantId));
+            }}
+          />
+        </div>
       </section>
 
       {/* Cancha — tap zones to filter */}
@@ -304,32 +302,31 @@ export const MatchAnalysisPage = () => {
             Tocá una zona para filtrar
           </span>
         </div>
-        <CourtView
-          heatmap={zoneCounts}
-          selectedZone={filter.zone}
-          onZoneSelect={(z) => {
-            if (!z) {
-              setFilter((f) => ({ ...f, zone: null }));
-              return;
-            }
-            if (z === 'long_range') return; // handled below
-            setFilter((f) => toggleZone(f, z as CourtZoneId));
-          }}
-        />
-        {zoneCounts.long_range !== undefined && zoneCounts.long_range > 0 && (
-          <button
-            type="button"
-            onClick={() => setFilter((f) => toggleZone(f, 'long_range'))}
-            className={cn(
-              'mt-2 w-full h-10 rounded-md border text-xs font-medium transition-colors duration-fast',
-              filter.zone === 'long_range'
-                ? 'border-card/60 bg-card/20 text-card'
-                : 'border-card/30 bg-card/5 text-card/80 hover:bg-card/10',
-            )}
-          >
-            🎯 Arco a Arco ({zoneCounts.long_range})
-          </button>
-        )}
+        <div className="max-w-sm md:max-w-md mx-auto">
+          <CourtView
+            heatmap={zoneCounts}
+            selectedZone={filter.zone}
+            onZoneSelect={(z) => {
+              if (!z) { setFilter((f) => ({ ...f, zone: null })); return; }
+              if (z === 'long_range') return;
+              setFilter((f) => toggleZone(f, z as CourtZoneId));
+            }}
+          />
+          {zoneCounts.long_range !== undefined && zoneCounts.long_range > 0 && (
+            <button
+              type="button"
+              onClick={() => setFilter((f) => toggleZone(f, 'long_range'))}
+              className={cn(
+                'mt-2 w-full h-10 rounded-md border text-xs font-medium transition-colors duration-fast',
+                filter.zone === 'long_range'
+                  ? 'border-card/60 bg-card/20 text-card'
+                  : 'border-card/30 bg-card/5 text-card/80 hover:bg-card/10',
+              )}
+            >
+              🎯 Arco a Arco ({zoneCounts.long_range})
+            </button>
+          )}
+        </div>
       </section>
 
       {/* Players */}
