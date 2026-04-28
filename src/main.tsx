@@ -5,6 +5,10 @@ import { useMatchStore } from './lib/store';
 import { seedDefaultTeams } from './lib/seed';
 import { simulateMatch } from './lib/simulate';
 import './styles/globals.css';
+import { initSupabaseSync } from '@/lib/sync';
+
+// Inicializar sync con Supabase
+initSupabaseSync();
 
 // Seed default teams on first boot (idempotent).
 seedDefaultTeams(useMatchStore.getState());
