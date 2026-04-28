@@ -1,23 +1,8 @@
 /**
  * SUPABASE SYNC - Sincronización automática Zustand → Supabase
- * 
- * Este archivo escucha cambios del store y los persiste en Supabase
- * sin romper la lógica de localStorage existente.
- * 
- * Uso en App.tsx o main.tsx:
- *   import { initSupabaseSync } from '@/lib/sync';
- *   initSupabaseSync();
  */
 
-import {
-  supabase,
-  getCurrentUser,
-  teamsRepo,
-  playersRepo,
-  matchesRepo,
-  shotsRepo,
-  eventsRepo,
-} from './supabase';
+import { supabase, getCurrentUser } from './supabase';
 import { useMatchStore } from './store';
 import type { HandballEvent, HandballTeam, MatchSummary, Player } from '@/domain/types';
 
@@ -28,14 +13,13 @@ let isInitialized = false;
 let currentUserId: string | null = null;
 let unsubscribeStore: (() => void) | null = null;
 
-// Cache para evitar duplicados
 const syncedTeams = new Set<string>();
 const syncedPlayers = new Set<string>();
 const syncedMatches = new Set<string>();
 const syncedEvents = new Set<string>();
 
 // ============================================================================
-// AUTH - obtener o crear sesión anónima
+// AUTH
 // ============================================================================
 async function ensureUser(): Promise<string | null> {
   try {
@@ -45,7 +29,6 @@ async function ensureUser(): Promise<string | null> {
       return user.id;
     }
 
-    // Si no hay user, intentamos sign in anónimo
     const { data, error } = await supabase.auth.signInAnonymously();
     if (error) {
       console.warn('[sync] No se pudo crear sesión anónima:', error.message);
@@ -64,37 +47,21 @@ async function ensureUser(): Promise<string | null> {
 // SYNC TEAMS
 // ============================================================================
 async function syncTeam(team: HandballTeam, userId: string) {
-  if (syncedTeams.has(team.id)) {
-    // Update
-    try {
-      await teamsRepo.update(team.id, {
-        name: team.name,
-        short_name: team.shortName ?? null,
-        color_primary: team.color ?? '#3B82F6',
-      });
-    } catch (e) {
-      console.warn('[sync] Error actualizando team:', e);
-    }
-    return;
-  }
-
-  // Insert
   try {
     await supabase.from('teams').upsert({
       id: team.id,
       user_id: userId,
       name: team.name,
-      short_name: team.shortName ?? null,
-      color_primary: team.color ?? '#3B82F6',
+      short_name: (team as any).shortName ?? null,
+      color_primary: (team as any).color ?? '#3B82F6',
     });
     syncedTeams.add(team.id);
 
-    // Sync players también
     for (const player of team.players ?? []) {
       await syncPlayer(player, team.id, userId);
     }
   } catch (e) {
-    console.warn('[sync] Error creando team:', e);
+    console.warn('[sync] Error team:', e);
   }
 }
 
@@ -110,26 +77,25 @@ async function syncPlayer(player: Player, teamId: string, userId: string) {
       user_id: userId,
       team_id: teamId,
       name: player.name,
-      number: player.number ?? null,
-      position: player.position ?? null,
-      is_goalkeeper: player.position === 'GK',
+      number: (player as any).number ?? null,
+      position: (player as any).position ?? null,
+      is_goalkeeper: (player as any).position === 'GK',
     });
     syncedPlayers.add(player.id);
   } catch (e) {
-    console.warn('[sync] Error creando player:', e);
+    console.warn('[sync] Error player:', e);
   }
 }
 
 // ============================================================================
-// SYNC MATCHES (completed)
+// SYNC MATCHES
 // ============================================================================
 async function syncMatch(match: MatchSummary, userId: string) {
   if (syncedMatches.has(match.id)) return;
 
   try {
-    // Buscar o crear teams
-    let homeTeamId = await findOrCreateTeam(match.home, match.homeColor, userId);
-    let awayTeamId = await findOrCreateTeam(match.away, match.awayColor, userId);
+    const homeTeamId = await findOrCreateTeam(match.home, match.homeColor, userId);
+    const awayTeamId = await findOrCreateTeam(match.away, match.awayColor, userId);
 
     if (!homeTeamId || !awayTeamId) return;
 
@@ -146,12 +112,11 @@ async function syncMatch(match: MatchSummary, userId: string) {
     });
     syncedMatches.add(match.id);
 
-    // Sync events del partido
     if (match.events && match.events.length > 0) {
       await syncEvents(match.events, match.id, homeTeamId, awayTeamId, userId);
     }
   } catch (e) {
-    console.warn('[sync] Error creando match:', e);
+    console.warn('[sync] Error match:', e);
   }
 }
 
@@ -170,16 +135,16 @@ async function syncEvents(
 
     try {
       const teamId = event.team === 'home' ? homeTeamId : awayTeamId;
-      
+
       await supabase.from('events').upsert({
         id: event.id,
         user_id: userId,
         match_id: matchId,
         team_id: teamId,
         event_type: mapEventType(event.type),
-        match_minute: event.minute ?? 0,
+        match_minute: (event as any).minute ?? 0,
         metadata: {
-          player_name: event.playerName ?? null,
+          player_name: (event as any).playerName ?? null,
           original_type: event.type,
           h_score: event.hScore,
           a_score: event.aScore,
@@ -187,19 +152,19 @@ async function syncEvents(
       });
       syncedEvents.add(event.id);
 
-      // Si es un tiro (gol/atajada/errado), también guardarlo en shots
-      if (['goal', 'save', 'miss'].includes(event.type)) {
+      if (['goal', 'save', 'miss'].includes(event.type as string)) {
         await supabase.from('shots').upsert({
           id: `shot-${event.id}`,
           user_id: userId,
           match_id: matchId,
           team_id: teamId,
-          outcome: event.type === 'goal' ? 'goal' : event.type === 'save' ? 'saved' : 'missed',
-          match_minute: event.minute ?? 0,
+          outcome:
+            event.type === 'goal' ? 'goal' : event.type === 'save' ? 'saved' : 'missed',
+          match_minute: (event as any).minute ?? 0,
         });
       }
     } catch (e) {
-      console.warn('[sync] Error creando event:', e);
+      console.warn('[sync] Error event:', e);
     }
   }
 }
@@ -235,14 +200,13 @@ async function findOrCreateTeam(
     if (error) throw error;
     return created.id;
   } catch (e) {
-    console.warn('[sync] Error buscando/creando team:', e);
+    console.warn('[sync] Error findOrCreateTeam:', e);
     return null;
   }
 }
 
 function parseDate(dateStr: string | null | undefined): string {
   if (!dateStr) return new Date().toISOString();
-  // formato "DD/MM" → asumimos año actual
   const m = dateStr.match(/^(\d{1,2})\/(\d{1,2})$/);
   if (m) {
     const year = new Date().getFullYear();
@@ -268,24 +232,21 @@ function mapEventType(type: string): string {
 }
 
 // ============================================================================
-// MAIN SYNC FUNCTION
+// MAIN SYNC
 // ============================================================================
 async function syncAll() {
   if (!currentUserId) return;
 
   const state = useMatchStore.getState();
 
-  // Sync teams
   for (const team of state.teams) {
     await syncTeam(team, currentUserId);
   }
 
-  // Sync completed matches
   for (const match of state.completed) {
     await syncMatch(match, currentUserId);
   }
 
-  // Sync live match si está activo
   if (state.status === 'live' && state.liveMatch.id) {
     const homeTeamId = await findOrCreateTeam(
       state.liveMatch.home,
@@ -313,17 +274,23 @@ async function syncAll() {
         });
 
         if (state.liveEvents.length > 0) {
-          await syncEvents(state.liveEvents, state.liveMatch.id, homeTeamId, awayTeamId, currentUserId);
+          await syncEvents(
+            state.liveEvents,
+            state.liveMatch.id,
+            homeTeamId,
+            awayTeamId,
+            currentUserId,
+          );
         }
       } catch (e) {
-        console.warn('[sync] Error sync live match:', e);
+        console.warn('[sync] Error live match:', e);
       }
     }
   }
 }
 
 // ============================================================================
-// INIT - llamar 1 vez al cargar la app
+// INIT
 // ============================================================================
 export async function initSupabaseSync() {
   if (isInitialized) return;
@@ -331,7 +298,6 @@ export async function initSupabaseSync() {
 
   console.log('[sync] Inicializando Supabase sync...');
 
-  // 1. Auth
   const userId = await ensureUser();
   if (!userId) {
     console.warn('[sync] No hay user, sync deshabilitado');
@@ -340,21 +306,18 @@ export async function initSupabaseSync() {
 
   console.log('[sync] User ID:', userId);
 
-  // 2. Primer sync inicial
   await syncAll();
 
-  // 3. Suscribirse a cambios del store
   let syncTimeout: ReturnType<typeof setTimeout> | null = null;
 
-  unsubscribeStore = useMatchStore.subscribe((state, prevState) => {
-    // Debounce - sync cada 2s después del último cambio
+  unsubscribeStore = useMatchStore.subscribe(() => {
     if (syncTimeout) clearTimeout(syncTimeout);
     syncTimeout = setTimeout(() => {
       syncAll().catch((e) => console.warn('[sync] Error:', e));
     }, 2000);
   });
 
-  console.log('[sync] ✅ Sync activado');
+  console.log('[sync] Sync activado');
 }
 
 // ============================================================================
@@ -368,9 +331,6 @@ export function stopSupabaseSync() {
   isInitialized = false;
 }
 
-// ============================================================================
-// EXPORT MANUAL SYNC TRIGGER
-// ============================================================================
 export async function forceSyncNow() {
   if (!currentUserId) {
     await ensureUser();
