@@ -135,31 +135,33 @@ async function syncEvents(
 
     try {
       const teamId = event.team === 'home' ? homeTeamId : awayTeamId;
+      const eventType = String(event.type);
 
       await supabase.from('events').upsert({
         id: event.id,
         user_id: userId,
         match_id: matchId,
         team_id: teamId,
-        event_type: mapEventType(event.type),
+        event_type: mapEventType(eventType),
         match_minute: (event as any).minute ?? 0,
         metadata: {
           player_name: (event as any).playerName ?? null,
-          original_type: event.type,
+          original_type: eventType,
           h_score: event.hScore,
           a_score: event.aScore,
         },
       });
       syncedEvents.add(event.id);
 
-      if (['goal', 'save', 'miss'].includes(event.type as string)) {
+      // Si es un tiro, también guardarlo en shots
+      const shotOutcome = mapShotOutcome(eventType);
+      if (shotOutcome) {
         await supabase.from('shots').upsert({
           id: `shot-${event.id}`,
           user_id: userId,
           match_id: matchId,
           team_id: teamId,
-          outcome:
-            event.type === 'goal' ? 'goal' : event.type === 'save' ? 'saved' : 'missed',
+          outcome: shotOutcome,
           match_minute: (event as any).minute ?? 0,
         });
       }
@@ -218,17 +220,35 @@ function parseDate(dateStr: string | null | undefined): string {
 function mapEventType(type: string): string {
   const map: Record<string, string> = {
     goal: 'goal',
+    saved: 'save',
     save: 'save',
     miss: 'miss',
+    post: 'miss',
     turnover: 'turnover',
+    yellow_card: 'yellow_card',
     yellow: 'yellow_card',
+    red_card: 'red_card',
     red: 'red_card',
+    blue_card: 'blue_card',
+    exclusion: 'two_minutes',
     twomin: 'two_minutes',
     timeout: 'timeout',
+    half_time: 'half_end',
     halfStart: 'half_start',
     halfEnd: 'half_end',
   };
   return map[type] ?? type;
+}
+
+function mapShotOutcome(type: string): string | null {
+  const map: Record<string, string> = {
+    goal: 'goal',
+    saved: 'saved',
+    save: 'saved',
+    miss: 'missed',
+    post: 'post',
+  };
+  return map[type] ?? null;
 }
 
 // ============================================================================
