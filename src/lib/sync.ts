@@ -1,5 +1,5 @@
 /**
- * SUPABASE SYNC v3 - Sin enviar IDs custom
+ * SUPABASE SYNC v4 - TypeScript fixes
  */
 
 import { supabase, getCurrentUser } from './supabase';
@@ -10,7 +10,6 @@ let isInitialized = false;
 let currentUserId: string | null = null;
 let unsubscribeStore: (() => void) | null = null;
 
-// Mapeos de IDs locales → IDs de Supabase
 const teamIdMap = new Map<string, string>();
 const playerIdMap = new Map<string, string>();
 const matchIdMap = new Map<string, string>();
@@ -39,13 +38,11 @@ async function ensureUser(): Promise<string | null> {
 }
 
 async function syncTeam(team: HandballTeam, userId: string): Promise<string | null> {
-  // Si ya lo sincronizamos antes, devolver el ID de Supabase
   if (teamIdMap.has(team.id)) {
     return teamIdMap.get(team.id)!;
   }
 
   try {
-    // Buscar si ya existe por nombre
     const { data: existing } = await supabase
       .from('teams')
       .select('id')
@@ -58,7 +55,6 @@ async function syncTeam(team: HandballTeam, userId: string): Promise<string | nu
     if (existing) {
       teamId = existing.id;
     } else {
-      // Crear nuevo team (sin pasar id custom)
       const { data, error } = await supabase
         .from('teams')
         .insert({
@@ -79,7 +75,6 @@ async function syncTeam(team: HandballTeam, userId: string): Promise<string | nu
 
     teamIdMap.set(team.id, teamId);
 
-    // Sync players
     for (const player of team.players ?? []) {
       await syncPlayer(player, teamId, userId);
     }
@@ -97,7 +92,6 @@ async function syncPlayer(player: Player, teamId: string, userId: string): Promi
   }
 
   try {
-    // Buscar si ya existe
     const { data: existing } = await supabase
       .from('players')
       .select('id')
@@ -144,6 +138,8 @@ async function findOrCreateTeamByName(
   color: string | undefined,
   userId: string,
 ): Promise<string | null> {
+  if (!name) return null;
+
   try {
     const { data: existing } = await supabase
       .from('teams')
@@ -245,7 +241,6 @@ async function syncEvents(
         syncedEvents.add(event.id);
       }
 
-      // Si es un tiro, también guardarlo en shots
       const shotOutcome = mapShotOutcome(eventType);
       if (shotOutcome) {
         await supabase.from('shots').insert({
@@ -319,7 +314,7 @@ async function syncAll() {
     await syncMatch(match, currentUserId);
   }
 
-  if (state.status === 'live' && state.liveMatch.id) {
+  if (state.status === 'live' && state.liveMatch.id && state.liveMatch.home && state.liveMatch.away) {
     const homeTeamId = await findOrCreateTeamByName(
       state.liveMatch.home,
       state.liveMatch.homeColor,
@@ -333,7 +328,6 @@ async function syncAll() {
 
     if (homeTeamId && awayTeamId) {
       try {
-        // Buscar match existente
         let supabaseMatchId = matchIdMap.get(state.liveMatch.id);
 
         if (!supabaseMatchId) {
