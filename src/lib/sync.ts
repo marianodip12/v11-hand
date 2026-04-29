@@ -1,5 +1,5 @@
 /**
- * SUPABASE SYNC - Final version with proper type guards
+ * SUPABASE SYNC - Clean version
  */
 
 import { supabase, getCurrentUser } from './supabase';
@@ -133,13 +133,7 @@ async function syncPlayer(player: Player, teamId: string, userId: string): Promi
   }
 }
 
-async function findOrCreateTeamByName(
-  name: string | null | undefined,
-  color: string | null | undefined,
-  userId: string,
-): Promise<string | null> {
-  if (!name) return null;
-
+async function findOrCreateTeam(name: string, color: string, userId: string): Promise<string | null> {
   try {
     const { data: existing } = await supabase
       .from('teams')
@@ -154,8 +148,8 @@ async function findOrCreateTeamByName(
       .from('teams')
       .insert({
         user_id: userId,
-        name: name,
-        color_primary: color ?? '#3B82F6',
+        name,
+        color_primary: color,
       })
       .select('id')
       .single();
@@ -173,10 +167,13 @@ async function findOrCreateTeamByName(
 
 async function syncMatch(match: MatchSummary, userId: string) {
   if (matchIdMap.has(match.id)) return;
+  
+  // Skip if missing required fields
+  if (!match.home || !match.away) return;
 
   try {
-    const homeTeamId = await findOrCreateTeamByName(match.home, match.homeColor, userId);
-    const awayTeamId = await findOrCreateTeamByName(match.away, match.awayColor, userId);
+    const homeTeamId = await findOrCreateTeam(match.home, match.homeColor || '#3B82F6', userId);
+    const awayTeamId = await findOrCreateTeam(match.away, match.awayColor || '#64748B', userId);
 
     if (!homeTeamId || !awayTeamId) return;
 
@@ -306,29 +303,28 @@ async function syncAll() {
 
   const state = useMatchStore.getState();
 
-  for (const team of state.teams) {
-    await syncTeam(team, currentUserId);
-  }
-
+  // Sync completed matches
   for (const match of state.completed) {
     await syncMatch(match, currentUserId);
   }
 
-  // Live match sync
-  const isLiveValid = 
-    state.status === 'live' && 
-    state.liveMatch.id && 
-    state.liveMatch.home && 
-    state.liveMatch.away;
+  // Sync teams & players
+  for (const team of state.teams) {
+    await syncTeam(team, currentUserId);
+  }
 
-  if (isLiveValid) {
-    const home = state.liveMatch.home || '';
-    const away = state.liveMatch.away || '';
-    const homeColor = state.liveMatch.homeColor || '#3B82F6';
-    const awayColor = state.liveMatch.awayColor || '#64748B';
-
-    const homeTeamId = await findOrCreateTeamByName(home, homeColor, currentUserId);
-    const awayTeamId = await findOrCreateTeamByName(away, awayColor, currentUserId);
+  // Sync live match if active
+  if (state.status === 'live' && state.liveMatch.id && state.liveMatch.home && state.liveMatch.away) {
+    const homeTeamId = await findOrCreateTeam(
+      state.liveMatch.home,
+      state.liveMatch.homeColor || '#3B82F6',
+      currentUserId
+    );
+    const awayTeamId = await findOrCreateTeam(
+      state.liveMatch.away,
+      state.liveMatch.awayColor || '#64748B',
+      currentUserId
+    );
 
     if (homeTeamId && awayTeamId) {
       try {
@@ -364,7 +360,7 @@ async function syncAll() {
             supabaseMatchId,
             homeTeamId,
             awayTeamId,
-            currentUserId,
+            currentUserId
           );
         }
       } catch (e) {
