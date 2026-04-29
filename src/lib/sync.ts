@@ -1,26 +1,21 @@
 /**
- * SUPABASE SYNC - Sincronización automática Zustand → Supabase
+ * SUPABASE SYNC v3 - Sin enviar IDs custom
  */
 
 import { supabase, getCurrentUser } from './supabase';
 import { useMatchStore } from './store';
 import type { HandballEvent, HandballTeam, MatchSummary, Player } from '@/domain/types';
 
-// ============================================================================
-// STATE
-// ============================================================================
 let isInitialized = false;
 let currentUserId: string | null = null;
 let unsubscribeStore: (() => void) | null = null;
 
-const syncedTeams = new Set<string>();
-const syncedPlayers = new Set<string>();
-const syncedMatches = new Set<string>();
+// Mapeos de IDs locales → IDs de Supabase
+const teamIdMap = new Map<string, string>();
+const playerIdMap = new Map<string, string>();
+const matchIdMap = new Map<string, string>();
 const syncedEvents = new Set<string>();
 
-// ============================================================================
-// AUTH
-// ============================================================================
 async function ensureUser(): Promise<string | null> {
   try {
     const user = await getCurrentUser();
@@ -43,138 +38,108 @@ async function ensureUser(): Promise<string | null> {
   }
 }
 
-// ============================================================================
-// SYNC TEAMS
-// ============================================================================
-async function syncTeam(team: HandballTeam, userId: string) {
-  try {
-    await supabase.from('teams').upsert({
-      id: team.id,
-      user_id: userId,
-      name: team.name,
-      short_name: (team as any).shortName ?? null,
-      color_primary: (team as any).color ?? '#3B82F6',
-    });
-    syncedTeams.add(team.id);
+async function syncTeam(team: HandballTeam, userId: string): Promise<string | null> {
+  // Si ya lo sincronizamos antes, devolver el ID de Supabase
+  if (teamIdMap.has(team.id)) {
+    return teamIdMap.get(team.id)!;
+  }
 
-    for (const player of team.players ?? []) {
-      await syncPlayer(player, team.id, userId);
+  try {
+    // Buscar si ya existe por nombre
+    const { data: existing } = await supabase
+      .from('teams')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('name', team.name)
+      .maybeSingle();
+
+    let teamId: string;
+
+    if (existing) {
+      teamId = existing.id;
+    } else {
+      // Crear nuevo team (sin pasar id custom)
+      const { data, error } = await supabase
+        .from('teams')
+        .insert({
+          user_id: userId,
+          name: team.name,
+          short_name: (team as any).shortName ?? null,
+          color_primary: (team as any).color ?? '#3B82F6',
+        })
+        .select('id')
+        .single();
+
+      if (error) {
+        console.warn('[sync] Error creando team:', error.message);
+        return null;
+      }
+      teamId = data.id;
     }
+
+    teamIdMap.set(team.id, teamId);
+
+    // Sync players
+    for (const player of team.players ?? []) {
+      await syncPlayer(player, teamId, userId);
+    }
+
+    return teamId;
   } catch (e) {
     console.warn('[sync] Error team:', e);
+    return null;
   }
 }
 
-// ============================================================================
-// SYNC PLAYERS
-// ============================================================================
-async function syncPlayer(player: Player, teamId: string, userId: string) {
-  if (syncedPlayers.has(player.id)) return;
+async function syncPlayer(player: Player, teamId: string, userId: string): Promise<string | null> {
+  if (playerIdMap.has(player.id)) {
+    return playerIdMap.get(player.id)!;
+  }
 
   try {
-    await supabase.from('players').upsert({
-      id: player.id,
-      user_id: userId,
-      team_id: teamId,
-      name: player.name,
-      number: (player as any).number ?? null,
-      position: (player as any).position ?? null,
-      is_goalkeeper: (player as any).position === 'GK',
-    });
-    syncedPlayers.add(player.id);
+    // Buscar si ya existe
+    const { data: existing } = await supabase
+      .from('players')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('team_id', teamId)
+      .eq('name', player.name)
+      .maybeSingle();
+
+    let playerId: string;
+
+    if (existing) {
+      playerId = existing.id;
+    } else {
+      const { data, error } = await supabase
+        .from('players')
+        .insert({
+          user_id: userId,
+          team_id: teamId,
+          name: player.name,
+          number: (player as any).number ?? null,
+          position: (player as any).position ?? null,
+          is_goalkeeper: (player as any).position === 'GK',
+        })
+        .select('id')
+        .single();
+
+      if (error) {
+        console.warn('[sync] Error creando player:', error.message);
+        return null;
+      }
+      playerId = data.id;
+    }
+
+    playerIdMap.set(player.id, playerId);
+    return playerId;
   } catch (e) {
     console.warn('[sync] Error player:', e);
+    return null;
   }
 }
 
-// ============================================================================
-// SYNC MATCHES
-// ============================================================================
-async function syncMatch(match: MatchSummary, userId: string) {
-  if (syncedMatches.has(match.id)) return;
-
-  try {
-    const homeTeamId = await findOrCreateTeam(match.home, match.homeColor, userId);
-    const awayTeamId = await findOrCreateTeam(match.away, match.awayColor, userId);
-
-    if (!homeTeamId || !awayTeamId) return;
-
-    await supabase.from('matches').upsert({
-      id: match.id,
-      user_id: userId,
-      home_team_id: homeTeamId,
-      away_team_id: awayTeamId,
-      match_date: parseDate(match.date),
-      competition: match.competition ?? null,
-      home_score: match.hs,
-      away_score: match.as,
-      status: 'finished',
-    });
-    syncedMatches.add(match.id);
-
-    if (match.events && match.events.length > 0) {
-      await syncEvents(match.events, match.id, homeTeamId, awayTeamId, userId);
-    }
-  } catch (e) {
-    console.warn('[sync] Error match:', e);
-  }
-}
-
-// ============================================================================
-// SYNC EVENTS
-// ============================================================================
-async function syncEvents(
-  events: HandballEvent[],
-  matchId: string,
-  homeTeamId: string,
-  awayTeamId: string,
-  userId: string,
-) {
-  for (const event of events) {
-    if (syncedEvents.has(event.id)) continue;
-
-    try {
-      const teamId = event.team === 'home' ? homeTeamId : awayTeamId;
-      const eventType = String(event.type);
-
-      await supabase.from('events').upsert({
-        id: event.id,
-        user_id: userId,
-        match_id: matchId,
-        team_id: teamId,
-        event_type: mapEventType(eventType),
-        match_minute: (event as any).minute ?? 0,
-        metadata: {
-          player_name: (event as any).playerName ?? null,
-          original_type: eventType,
-          h_score: event.hScore,
-          a_score: event.aScore,
-        },
-      });
-      syncedEvents.add(event.id);
-
-      // Si es un tiro, también guardarlo en shots
-      const shotOutcome = mapShotOutcome(eventType);
-      if (shotOutcome) {
-        await supabase.from('shots').upsert({
-          id: `shot-${event.id}`,
-          user_id: userId,
-          match_id: matchId,
-          team_id: teamId,
-          outcome: shotOutcome,
-          match_minute: (event as any).minute ?? 0,
-        });
-      }
-    } catch (e) {
-      console.warn('[sync] Error event:', e);
-    }
-  }
-}
-
-// ============================================================================
-// HELPERS
-// ============================================================================
-async function findOrCreateTeam(
+async function findOrCreateTeamByName(
   name: string,
   color: string | undefined,
   userId: string,
@@ -189,7 +154,7 @@ async function findOrCreateTeam(
 
     if (existing) return existing.id;
 
-    const { data: created, error } = await supabase
+    const { data, error } = await supabase
       .from('teams')
       .insert({
         user_id: userId,
@@ -199,11 +164,101 @@ async function findOrCreateTeam(
       .select('id')
       .single();
 
-    if (error) throw error;
-    return created.id;
+    if (error) {
+      console.warn('[sync] Error findOrCreate:', error.message);
+      return null;
+    }
+    return data.id;
   } catch (e) {
-    console.warn('[sync] Error findOrCreateTeam:', e);
+    console.warn('[sync] Error findOrCreate:', e);
     return null;
+  }
+}
+
+async function syncMatch(match: MatchSummary, userId: string) {
+  if (matchIdMap.has(match.id)) return;
+
+  try {
+    const homeTeamId = await findOrCreateTeamByName(match.home, match.homeColor, userId);
+    const awayTeamId = await findOrCreateTeamByName(match.away, match.awayColor, userId);
+
+    if (!homeTeamId || !awayTeamId) return;
+
+    const { data, error } = await supabase
+      .from('matches')
+      .insert({
+        user_id: userId,
+        home_team_id: homeTeamId,
+        away_team_id: awayTeamId,
+        match_date: parseDate(match.date),
+        competition: match.competition ?? null,
+        home_score: match.hs,
+        away_score: match.as,
+        status: 'finished',
+      })
+      .select('id')
+      .single();
+
+    if (error) {
+      console.warn('[sync] Error match:', error.message);
+      return;
+    }
+
+    matchIdMap.set(match.id, data.id);
+
+    if (match.events && match.events.length > 0) {
+      await syncEvents(match.events, data.id, homeTeamId, awayTeamId, userId);
+    }
+  } catch (e) {
+    console.warn('[sync] Error match:', e);
+  }
+}
+
+async function syncEvents(
+  events: HandballEvent[],
+  matchId: string,
+  homeTeamId: string,
+  awayTeamId: string,
+  userId: string,
+) {
+  for (const event of events) {
+    if (syncedEvents.has(event.id)) continue;
+
+    try {
+      const teamId = event.team === 'home' ? homeTeamId : awayTeamId;
+      const eventType = String(event.type);
+
+      const { error } = await supabase.from('events').insert({
+        user_id: userId,
+        match_id: matchId,
+        team_id: teamId,
+        event_type: mapEventType(eventType),
+        match_minute: (event as any).minute ?? 0,
+        metadata: {
+          player_name: (event as any).playerName ?? null,
+          original_type: eventType,
+          local_id: event.id,
+        },
+      });
+
+      if (!error) {
+        syncedEvents.add(event.id);
+      }
+
+      // Si es un tiro, también guardarlo en shots
+      const shotOutcome = mapShotOutcome(eventType);
+      if (shotOutcome) {
+        await supabase.from('shots').insert({
+          user_id: userId,
+          match_id: matchId,
+          team_id: teamId,
+          outcome: shotOutcome,
+          match_minute: (event as any).minute ?? 0,
+        });
+      }
+    } catch (e) {
+      console.warn('[sync] Error event:', e);
+    }
   }
 }
 
@@ -251,9 +306,6 @@ function mapShotOutcome(type: string): string | null {
   return map[type] ?? null;
 }
 
-// ============================================================================
-// MAIN SYNC
-// ============================================================================
 async function syncAll() {
   if (!currentUserId) return;
 
@@ -268,12 +320,12 @@ async function syncAll() {
   }
 
   if (state.status === 'live' && state.liveMatch.id) {
-    const homeTeamId = await findOrCreateTeam(
+    const homeTeamId = await findOrCreateTeamByName(
       state.liveMatch.home,
       state.liveMatch.homeColor,
       currentUserId,
     );
-    const awayTeamId = await findOrCreateTeam(
+    const awayTeamId = await findOrCreateTeamByName(
       state.liveMatch.away,
       state.liveMatch.awayColor,
       currentUserId,
@@ -281,22 +333,37 @@ async function syncAll() {
 
     if (homeTeamId && awayTeamId) {
       try {
-        await supabase.from('matches').upsert({
-          id: state.liveMatch.id,
-          user_id: currentUserId,
-          home_team_id: homeTeamId,
-          away_team_id: awayTeamId,
-          match_date: parseDate(state.liveMatch.date),
-          competition: String(state.liveMatch.competition ?? ''),
-          status: 'live',
-          home_score: 0,
-          away_score: 0,
-        });
+        // Buscar match existente
+        let supabaseMatchId = matchIdMap.get(state.liveMatch.id);
+
+        if (!supabaseMatchId) {
+          const { data, error } = await supabase
+            .from('matches')
+            .insert({
+              user_id: currentUserId,
+              home_team_id: homeTeamId,
+              away_team_id: awayTeamId,
+              match_date: parseDate(state.liveMatch.date),
+              competition: String(state.liveMatch.competition ?? ''),
+              status: 'live',
+              home_score: 0,
+              away_score: 0,
+            })
+            .select('id')
+            .single();
+
+          if (error) {
+            console.warn('[sync] Error live match:', error.message);
+            return;
+          }
+          supabaseMatchId = data.id;
+          matchIdMap.set(state.liveMatch.id, supabaseMatchId);
+        }
 
         if (state.liveEvents.length > 0) {
           await syncEvents(
             state.liveEvents,
-            state.liveMatch.id,
+            supabaseMatchId,
             homeTeamId,
             awayTeamId,
             currentUserId,
@@ -309,9 +376,6 @@ async function syncAll() {
   }
 }
 
-// ============================================================================
-// INIT
-// ============================================================================
 export async function initSupabaseSync() {
   if (isInitialized) return;
   isInitialized = true;
@@ -340,9 +404,6 @@ export async function initSupabaseSync() {
   console.log('[sync] Sync activado');
 }
 
-// ============================================================================
-// CLEANUP
-// ============================================================================
 export function stopSupabaseSync() {
   if (unsubscribeStore) {
     unsubscribeStore();
