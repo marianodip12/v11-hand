@@ -1,5 +1,5 @@
 /**
- * SUPABASE SYNC v4 - TypeScript fixes
+ * SUPABASE SYNC - Final version with proper type guards
  */
 
 import { supabase, getCurrentUser } from './supabase';
@@ -25,14 +25,14 @@ async function ensureUser(): Promise<string | null> {
 
     const { data, error } = await supabase.auth.signInAnonymously();
     if (error) {
-      console.warn('[sync] No se pudo crear sesión anónima:', error.message);
+      console.warn('[sync] No sesión anónima:', error.message);
       return null;
     }
 
     currentUserId = data.user?.id ?? null;
     return currentUserId;
   } catch (e) {
-    console.warn('[sync] Error de auth:', e);
+    console.warn('[sync] Auth error:', e);
     return null;
   }
 }
@@ -67,7 +67,7 @@ async function syncTeam(team: HandballTeam, userId: string): Promise<string | nu
         .single();
 
       if (error) {
-        console.warn('[sync] Error creando team:', error.message);
+        console.warn('[sync] Team error:', error.message);
         return null;
       }
       teamId = data.id;
@@ -81,7 +81,7 @@ async function syncTeam(team: HandballTeam, userId: string): Promise<string | nu
 
     return teamId;
   } catch (e) {
-    console.warn('[sync] Error team:', e);
+    console.warn('[sync] Team:', e);
     return null;
   }
 }
@@ -119,7 +119,7 @@ async function syncPlayer(player: Player, teamId: string, userId: string): Promi
         .single();
 
       if (error) {
-        console.warn('[sync] Error creando player:', error.message);
+        console.warn('[sync] Player error:', error.message);
         return null;
       }
       playerId = data.id;
@@ -128,14 +128,14 @@ async function syncPlayer(player: Player, teamId: string, userId: string): Promi
     playerIdMap.set(player.id, playerId);
     return playerId;
   } catch (e) {
-    console.warn('[sync] Error player:', e);
+    console.warn('[sync] Player:', e);
     return null;
   }
 }
 
 async function findOrCreateTeamByName(
-  name: string,
-  color: string | undefined,
+  name: string | null | undefined,
+  color: string | null | undefined,
   userId: string,
 ): Promise<string | null> {
   if (!name) return null;
@@ -154,19 +154,19 @@ async function findOrCreateTeamByName(
       .from('teams')
       .insert({
         user_id: userId,
-        name,
+        name: name,
         color_primary: color ?? '#3B82F6',
       })
       .select('id')
       .single();
 
     if (error) {
-      console.warn('[sync] Error findOrCreate:', error.message);
+      console.warn('[sync] FindOrCreate error:', error.message);
       return null;
     }
     return data.id;
   } catch (e) {
-    console.warn('[sync] Error findOrCreate:', e);
+    console.warn('[sync] FindOrCreate:', e);
     return null;
   }
 }
@@ -196,7 +196,7 @@ async function syncMatch(match: MatchSummary, userId: string) {
       .single();
 
     if (error) {
-      console.warn('[sync] Error match:', error.message);
+      console.warn('[sync] Match error:', error.message);
       return;
     }
 
@@ -206,7 +206,7 @@ async function syncMatch(match: MatchSummary, userId: string) {
       await syncEvents(match.events, data.id, homeTeamId, awayTeamId, userId);
     }
   } catch (e) {
-    console.warn('[sync] Error match:', e);
+    console.warn('[sync] Match:', e);
   }
 }
 
@@ -252,7 +252,7 @@ async function syncEvents(
         });
       }
     } catch (e) {
-      console.warn('[sync] Error event:', e);
+      console.warn('[sync] Event:', e);
     }
   }
 }
@@ -314,17 +314,21 @@ async function syncAll() {
     await syncMatch(match, currentUserId);
   }
 
-  if (state.status === 'live' && state.liveMatch.id && state.liveMatch.home && state.liveMatch.away) {
-    const homeTeamId = await findOrCreateTeamByName(
-      state.liveMatch.home,
-      state.liveMatch.homeColor,
-      currentUserId,
-    );
-    const awayTeamId = await findOrCreateTeamByName(
-      state.liveMatch.away,
-      state.liveMatch.awayColor,
-      currentUserId,
-    );
+  // Live match sync
+  const isLiveValid = 
+    state.status === 'live' && 
+    state.liveMatch.id && 
+    state.liveMatch.home && 
+    state.liveMatch.away;
+
+  if (isLiveValid) {
+    const home = state.liveMatch.home || '';
+    const away = state.liveMatch.away || '';
+    const homeColor = state.liveMatch.homeColor || '#3B82F6';
+    const awayColor = state.liveMatch.awayColor || '#64748B';
+
+    const homeTeamId = await findOrCreateTeamByName(home, homeColor, currentUserId);
+    const awayTeamId = await findOrCreateTeamByName(away, awayColor, currentUserId);
 
     if (homeTeamId && awayTeamId) {
       try {
@@ -347,7 +351,7 @@ async function syncAll() {
             .single();
 
           if (error) {
-            console.warn('[sync] Error live match:', error.message);
+            console.warn('[sync] Live match error:', error.message);
             return;
           }
           supabaseMatchId = data.id;
@@ -364,7 +368,7 @@ async function syncAll() {
           );
         }
       } catch (e) {
-        console.warn('[sync] Error live match:', e);
+        console.warn('[sync] Live match:', e);
       }
     }
   }
