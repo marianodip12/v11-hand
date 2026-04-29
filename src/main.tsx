@@ -7,9 +7,6 @@ import { simulateMatch } from './lib/simulate';
 import './styles/globals.css';
 
 
-// Inicializar sync con Supabase
-initSupabaseSync();
-
 // Seed default teams on first boot (idempotent).
 seedDefaultTeams(useMatchStore.getState());
 
