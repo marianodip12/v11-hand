@@ -149,11 +149,22 @@ async function findOrCreateTeam(name: string, color: string, userId: string): Pr
 
 async function syncMatch(match: MatchSummary, userId: string) {
   if (matchIdMap.has(match.id)) return;
+  
+  // Skip if missing required fields
   if (!match.home || !match.away) return;
 
   try {
-    const homeTeamId = await findOrCreateTeam(match.home, match.homeColor || '#3B82F6', userId);
-    const awayTeamId = await findOrCreateTeam(match.away, match.awayColor || '#64748B', userId);
+    // Use type assertions after validation
+    const homeTeamId = await findOrCreateTeam(
+      match.home as string,
+      (match.homeColor ?? '#3B82F6') as string,
+      userId
+    );
+    const awayTeamId = await findOrCreateTeam(
+      match.away as string,
+      (match.awayColor ?? '#64748B') as string,
+      userId
+    );
 
     if (!homeTeamId || !awayTeamId) return;
 
@@ -271,20 +282,20 @@ async function syncAll() {
     await syncTeam(team, currentUserId);
   }
 
-  // Live match - extract variables first to satisfy TypeScript
+  // Live match
   const hasLiveMatch = state.status === 'live' && state.liveMatch.id;
   if (!hasLiveMatch) return;
 
   const home = state.liveMatch.home;
   const away = state.liveMatch.away;
-  
+
   if (!home || !away) return;
 
-  const homeColor = state.liveMatch.homeColor || '#3B82F6';
-  const awayColor = state.liveMatch.awayColor || '#64748B';
+  const homeColor = (state.liveMatch.homeColor ?? '#3B82F6') as string;
+  const awayColor = (state.liveMatch.awayColor ?? '#64748B') as string;
 
-  const homeTeamId = await findOrCreateTeam(home, homeColor, currentUserId);
-  const awayTeamId = await findOrCreateTeam(away, awayColor, currentUserId);
+  const homeTeamId = await findOrCreateTeam(home as string, homeColor, currentUserId);
+  const awayTeamId = await findOrCreateTeam(away as string, awayColor, currentUserId);
 
   if (!homeTeamId || !awayTeamId) return;
 
