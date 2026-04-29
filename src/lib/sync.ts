@@ -1,7 +1,3 @@
-/**
- * SUPABASE SYNC - Clean version
- */
-
 import { supabase, getCurrentUser } from './supabase';
 import { useMatchStore } from './store';
 import type { HandballEvent, HandballTeam, MatchSummary, Player } from '@/domain/types';
@@ -22,13 +18,11 @@ async function ensureUser(): Promise<string | null> {
       currentUserId = user.id;
       return user.id;
     }
-
     const { data, error } = await supabase.auth.signInAnonymously();
     if (error) {
       console.warn('[sync] No sesión anónima:', error.message);
       return null;
     }
-
     currentUserId = data.user?.id ?? null;
     return currentUserId;
   } catch (e) {
@@ -38,9 +32,7 @@ async function ensureUser(): Promise<string | null> {
 }
 
 async function syncTeam(team: HandballTeam, userId: string): Promise<string | null> {
-  if (teamIdMap.has(team.id)) {
-    return teamIdMap.get(team.id)!;
-  }
+  if (teamIdMap.has(team.id)) return teamIdMap.get(team.id)!;
 
   try {
     const { data: existing } = await supabase
@@ -51,7 +43,6 @@ async function syncTeam(team: HandballTeam, userId: string): Promise<string | nu
       .maybeSingle();
 
     let teamId: string;
-
     if (existing) {
       teamId = existing.id;
     } else {
@@ -74,11 +65,9 @@ async function syncTeam(team: HandballTeam, userId: string): Promise<string | nu
     }
 
     teamIdMap.set(team.id, teamId);
-
     for (const player of team.players ?? []) {
       await syncPlayer(player, teamId, userId);
     }
-
     return teamId;
   } catch (e) {
     console.warn('[sync] Team:', e);
@@ -87,9 +76,7 @@ async function syncTeam(team: HandballTeam, userId: string): Promise<string | nu
 }
 
 async function syncPlayer(player: Player, teamId: string, userId: string): Promise<string | null> {
-  if (playerIdMap.has(player.id)) {
-    return playerIdMap.get(player.id)!;
-  }
+  if (playerIdMap.has(player.id)) return playerIdMap.get(player.id)!;
 
   try {
     const { data: existing } = await supabase
@@ -101,7 +88,6 @@ async function syncPlayer(player: Player, teamId: string, userId: string): Promi
       .maybeSingle();
 
     let playerId: string;
-
     if (existing) {
       playerId = existing.id;
     } else {
@@ -146,11 +132,7 @@ async function findOrCreateTeam(name: string, color: string, userId: string): Pr
 
     const { data, error } = await supabase
       .from('teams')
-      .insert({
-        user_id: userId,
-        name,
-        color_primary: color,
-      })
+      .insert({ user_id: userId, name, color_primary: color })
       .select('id')
       .single();
 
@@ -167,8 +149,6 @@ async function findOrCreateTeam(name: string, color: string, userId: string): Pr
 
 async function syncMatch(match: MatchSummary, userId: string) {
   if (matchIdMap.has(match.id)) return;
-  
-  // Skip if missing required fields
   if (!match.home || !match.away) return;
 
   try {
@@ -198,7 +178,6 @@ async function syncMatch(match: MatchSummary, userId: string) {
     }
 
     matchIdMap.set(match.id, data.id);
-
     if (match.events && match.events.length > 0) {
       await syncEvents(match.events, data.id, homeTeamId, awayTeamId, userId);
     }
@@ -234,9 +213,7 @@ async function syncEvents(
         },
       });
 
-      if (!error) {
-        syncedEvents.add(event.id);
-      }
+      if (!error) syncedEvents.add(event.id);
 
       const shotOutcome = mapShotOutcome(eventType);
       if (shotOutcome) {
@@ -266,107 +243,83 @@ function parseDate(dateStr: string | null | undefined): string {
 
 function mapEventType(type: string): string {
   const map: Record<string, string> = {
-    goal: 'goal',
-    saved: 'save',
-    save: 'save',
-    miss: 'miss',
-    post: 'miss',
-    turnover: 'turnover',
-    yellow_card: 'yellow_card',
-    yellow: 'yellow_card',
-    red_card: 'red_card',
-    red: 'red_card',
-    blue_card: 'blue_card',
-    exclusion: 'two_minutes',
-    twomin: 'two_minutes',
-    timeout: 'timeout',
-    half_time: 'half_end',
-    halfStart: 'half_start',
-    halfEnd: 'half_end',
+    goal: 'goal', saved: 'save', save: 'save', miss: 'miss', post: 'miss',
+    turnover: 'turnover', yellow_card: 'yellow_card', yellow: 'yellow_card',
+    red_card: 'red_card', red: 'red_card', blue_card: 'blue_card',
+    exclusion: 'two_minutes', twomin: 'two_minutes', timeout: 'timeout',
+    half_time: 'half_end', halfStart: 'half_start', halfEnd: 'half_end',
   };
   return map[type] ?? type;
 }
 
 function mapShotOutcome(type: string): string | null {
   const map: Record<string, string> = {
-    goal: 'goal',
-    saved: 'saved',
-    save: 'saved',
-    miss: 'missed',
-    post: 'post',
+    goal: 'goal', saved: 'saved', save: 'saved', miss: 'missed', post: 'post',
   };
   return map[type] ?? null;
 }
 
 async function syncAll() {
   if (!currentUserId) return;
-
   const state = useMatchStore.getState();
 
-  // Sync completed matches
   for (const match of state.completed) {
     await syncMatch(match, currentUserId);
   }
 
-  // Sync teams & players
   for (const team of state.teams) {
     await syncTeam(team, currentUserId);
   }
 
-  // Sync live match if active
-  if (state.status === 'live' && state.liveMatch.id && state.liveMatch.home && state.liveMatch.away) {
-    const homeTeamId = await findOrCreateTeam(
-      state.liveMatch.home,
-      state.liveMatch.homeColor || '#3B82F6',
-      currentUserId
-    );
-    const awayTeamId = await findOrCreateTeam(
-      state.liveMatch.away,
-      state.liveMatch.awayColor || '#64748B',
-      currentUserId
-    );
+  // Live match - extract variables first to satisfy TypeScript
+  const hasLiveMatch = state.status === 'live' && state.liveMatch.id;
+  if (!hasLiveMatch) return;
 
-    if (homeTeamId && awayTeamId) {
-      try {
-        let supabaseMatchId = matchIdMap.get(state.liveMatch.id);
+  const home = state.liveMatch.home;
+  const away = state.liveMatch.away;
+  
+  if (!home || !away) return;
 
-        if (!supabaseMatchId) {
-          const { data, error } = await supabase
-            .from('matches')
-            .insert({
-              user_id: currentUserId,
-              home_team_id: homeTeamId,
-              away_team_id: awayTeamId,
-              match_date: parseDate(state.liveMatch.date),
-              competition: String(state.liveMatch.competition ?? ''),
-              status: 'live',
-              home_score: 0,
-              away_score: 0,
-            })
-            .select('id')
-            .single();
+  const homeColor = state.liveMatch.homeColor || '#3B82F6';
+  const awayColor = state.liveMatch.awayColor || '#64748B';
 
-          if (error) {
-            console.warn('[sync] Live match error:', error.message);
-            return;
-          }
-          supabaseMatchId = data.id;
-          matchIdMap.set(state.liveMatch.id, supabaseMatchId);
-        }
+  const homeTeamId = await findOrCreateTeam(home, homeColor, currentUserId);
+  const awayTeamId = await findOrCreateTeam(away, awayColor, currentUserId);
 
-        if (state.liveEvents.length > 0) {
-          await syncEvents(
-            state.liveEvents,
-            supabaseMatchId,
-            homeTeamId,
-            awayTeamId,
-            currentUserId
-          );
-        }
-      } catch (e) {
-        console.warn('[sync] Live match:', e);
+  if (!homeTeamId || !awayTeamId) return;
+
+  try {
+    let supabaseMatchId = matchIdMap.get(state.liveMatch.id);
+
+    if (!supabaseMatchId) {
+      const { data, error } = await supabase
+        .from('matches')
+        .insert({
+          user_id: currentUserId,
+          home_team_id: homeTeamId,
+          away_team_id: awayTeamId,
+          match_date: parseDate(state.liveMatch.date),
+          competition: String(state.liveMatch.competition ?? ''),
+          status: 'live',
+          home_score: 0,
+          away_score: 0,
+        })
+        .select('id')
+        .single();
+
+      if (error) {
+        console.warn('[sync] Live match error:', error.message);
+        return;
       }
+      supabaseMatchId = data.id;
+      matchIdMap.set(state.liveMatch.id, supabaseMatchId);
     }
+
+    if (state.liveEvents.length > 0) {
+      await syncEvents(state.liveEvents, supabaseMatchId, homeTeamId, awayTeamId, currentUserId);
+    }
+  } catch (e) {
+    console.warn('[sync] Live match:', e);
   }
 }
 
@@ -407,8 +360,6 @@ export function stopSupabaseSync() {
 }
 
 export async function forceSyncNow() {
-  if (!currentUserId) {
-    await ensureUser();
-  }
+  if (!currentUserId) await ensureUser();
   await syncAll();
 }
