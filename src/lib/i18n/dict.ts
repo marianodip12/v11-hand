@@ -316,7 +316,7 @@ const es: Dict = {
   analysis_lanzam: 'Lanzam.',
   analysis_atajadas: 'Atajadas',
   analysis_palos: 'Palos',
-  analysis_fuera: 'Fuera',
+  analysis_fuera: 'Con Falta',
   analysis_errados: 'Errados',
   analysis_efect: 'Efect.',
   analysis_event_total: 'eventos en total',
