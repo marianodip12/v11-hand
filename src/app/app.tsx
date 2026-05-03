@@ -7,6 +7,7 @@ import { LiveMatchPage } from '@/features/live-match/live-match-page';
 import { MatchAnalysisPage } from '@/features/match-analysis/match-analysis-page';
 import { StatsPage } from '@/features/stats/stats-page';
 import { EvolutionPage } from '@/features/evolution/evolution-page';
+import { SharePage } from '@/features/share/share-page';
 import { I18nProvider } from '@/lib/i18n';
 
 const queryClient = new QueryClient({
@@ -20,6 +21,8 @@ const queryClient = new QueryClient({
 });
 
 const router = createBrowserRouter([
+  // Public share page (no shell, no auth)
+  { path: '/share/:token', element: <SharePage /> },
   {
     path: '/',
     element: <AppShell />,

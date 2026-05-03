@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -31,6 +31,7 @@ import { useT } from '@/lib/i18n';
 import { cn } from '@/lib/cn';
 import { PlayersPanel } from './players-panel';
 import { CompareBar } from '@/features/live-match/live-stats';
+import { shareMatch, getShareStatus } from '@/lib/share';
 
 // ─── Period filter ──────────────────────────────────────────────────────
 type PeriodFilter = 'full' | 'first' | 'second';
@@ -202,12 +203,15 @@ export const MatchAnalysisPage = () => {
           <div className="text-[10px] font-semibold tracking-[3px] uppercase text-primary">
             {t.analysis_title}
           </div>
-          <button
-            onClick={() => navigate('/')}
-            className="text-[11px] text-muted-fg hover:text-fg"
-          >
-            ← Volver
-          </button>
+          <div className="flex items-center gap-2">
+            <ShareButton matchId={match.id} />
+            <button
+              onClick={() => navigate('/')}
+              className="text-[11px] text-muted-fg hover:text-fg"
+            >
+              ← Volver
+            </button>
+          </div>
         </div>
         <div className="flex flex-col md:flex-row items-baseline gap-2">
           <h1 className="text-2xl md:text-3xl font-semibold leading-tight truncate">
@@ -528,3 +532,177 @@ const SummaryTab = ({ value, label, color, active, onClick }: {
     <span className="text-[8px] uppercase tracking-widest text-muted-fg mt-1">{label}</span>
   </button>
 );
+
+// ─── Share button ───────────────────────────────────────────────────────
+const ShareButton = ({ matchId }: { matchId: string }) => {
+  const [busy, setBusy] = useState(false);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Check if already shared on mount
+  useEffect(() => {
+    let cancelled = false;
+    getShareStatus(matchId)
+      .then((s) => {
+        if (!cancelled && s.shared && s.url) setShareUrl(s.url);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [matchId]);
+
+  const handleShare = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await shareMatch(matchId);
+      setShareUrl(result.url);
+      setShowModal(true);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Error al compartir';
+      setError(msg);
+      setShowModal(true);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleCopy = async () => {
+    if (!shareUrl) return;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // fallback
+      const ta = document.createElement('textarea');
+      ta.value = shareUrl;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const handleNativeShare = async () => {
+    if (!shareUrl) return;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Análisis Handball Pro',
+          text: 'Mirá el análisis del partido',
+          url: shareUrl,
+        });
+      } catch {
+        // user cancelled
+      }
+    } else {
+      handleCopy();
+    }
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={handleShare}
+        disabled={busy}
+        className="text-[11px] px-2.5 py-1 rounded border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+      >
+        {busy ? (
+          <>
+            <span className="inline-block w-2 h-2 rounded-full bg-primary animate-pulse" />
+            Compartiendo…
+          </>
+        ) : shareUrl ? (
+          <>📋 Ver link</>
+        ) : (
+          <>🔗 Compartir</>
+        )}
+      </button>
+
+      {showModal && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setShowModal(false)}
+        >
+          <div
+            className="bg-surface border border-border rounded-lg max-w-md w-full p-5 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-base">
+                {error ? '⚠️ No se pudo compartir' : '🎉 Link de análisis listo'}
+              </h3>
+              <button
+                onClick={() => setShowModal(false)}
+                className="text-muted-fg hover:text-fg text-lg leading-none"
+              >
+                ×
+              </button>
+            </div>
+
+            {error ? (
+              <div className="space-y-2">
+                <p className="text-sm text-danger">{error}</p>
+                <p className="text-xs text-muted-fg">
+                  Verificá que tengas conexión a internet. Si el problema persiste, esperá unos
+                  segundos y volvé a intentar.
+                </p>
+              </div>
+            ) : shareUrl ? (
+              <>
+                <p className="text-sm text-muted-fg">
+                  Cualquiera con este link podrá ver las estadísticas del partido (sin necesidad
+                  de iniciar sesión).
+                </p>
+
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={shareUrl}
+                    className="flex-1 px-3 py-2 rounded bg-bg border border-border text-sm font-mono text-muted-fg"
+                    onClick={(e) => (e.target as HTMLInputElement).select()}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleCopy}
+                    className={cn(
+                      'px-3 py-2 rounded text-xs font-semibold transition-colors',
+                      copied
+                        ? 'bg-success text-white'
+                        : 'bg-primary text-primary-fg hover:bg-primary/90',
+                    )}
+                  >
+                    {copied ? '✓ Copiado' : 'Copiar'}
+                  </button>
+                </div>
+
+                {typeof navigator !== 'undefined' && 'share' in navigator && (
+                  <button
+                    type="button"
+                    onClick={handleNativeShare}
+                    className="w-full px-3 py-2 rounded border border-border text-sm hover:bg-surface-2"
+                  >
+                    📤 Compartir via WhatsApp / Email / etc.
+                  </button>
+                )}
+
+                <p className="text-[11px] text-muted-fg">
+                  💡 Tip: el link es permanente. Lo podés volver a obtener desde este botón
+                  cuando quieras.
+                </p>
+              </>
+            ) : null}
+          </div>
+        </div>
+      )}
+    </>
+  );
+};

@@ -4,6 +4,7 @@ import { App } from './app/app';
 import { useMatchStore } from './lib/store';
 import { seedDefaultTeams } from './lib/seed';
 import { simulateMatch } from './lib/simulate';
+import { initSync } from './lib/sync';
 import './styles/globals.css';
 
 
@@ -26,6 +27,12 @@ if (new URLSearchParams(location.search).get('demo') === 'sim') {
     // Add to completed without touching live state
     useMatchStore.setState({ completed: [match, ...store.completed] });
   }
+}
+
+// Initialize Supabase sync (anonymous auth + auto-sync of all matches/events)
+// Skip on /share/ pages - those don't need user auth.
+if (!location.pathname.startsWith('/share/')) {
+  initSync().catch((e) => console.warn('[main] sync init error:', e));
 }
 
 const root = document.getElementById('root');
