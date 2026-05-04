@@ -31,6 +31,8 @@ import { useT } from '@/lib/i18n';
 import { cn } from '@/lib/cn';
 import { PlayersPanel } from './players-panel';
 import { CompareBar } from '@/features/live-match/live-stats';
+import { EventTimeline } from '@/features/live-match/event-timeline';
+import { EventEditDialog } from '@/features/live-match/event-edit-dialog';
 import { shareMatch, getShareStatus } from '@/lib/share';
 
 // ─── Period filter ──────────────────────────────────────────────────────
@@ -73,6 +75,8 @@ export const MatchAnalysisPage = () => {
 
   const completed = useMatchStore((s) => s.completed);
   const myTeam = useMatchStore(selectHomeTeam);
+  const updateCompletedEvent = useMatchStore((s) => s.updateCompletedEvent);
+  const removeCompletedEvent = useMatchStore((s) => s.removeCompletedEvent);
 
   const match = useMemo(
     () => completed.find((m) => m.id === id) ?? null,
@@ -83,6 +87,8 @@ export const MatchAnalysisPage = () => {
   const [fueraMode, setFueraMode] = useState<boolean>(false);
   const [period, setPeriod] = useState<PeriodFilter>('full');
   const [teamToggle, setTeamToggle] = useState<'mine' | 'rival' | 'all'>('all');
+  const [editingEvent, setEditingEvent] = useState<HandballEvent | null>(null);
+  const [showEditPanel, setShowEditPanel] = useState(false);
 
   const myTeamSide = useMemo(() => {
     if (!myTeam || !match) return null;
@@ -473,6 +479,57 @@ export const MatchAnalysisPage = () => {
           </CardContent>
         </Card>
       </section>
+
+      {/* Edición de eventos del partido finalizado */}
+      <section className="space-y-2">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-fg">
+            Eventos del partido
+          </h3>
+          <button
+            type="button"
+            onClick={() => setShowEditPanel((v) => !v)}
+            className={cn(
+              'text-[11px] px-2.5 py-1 rounded border transition-colors flex items-center gap-1.5',
+              showEditPanel
+                ? 'border-primary/40 bg-primary/10 text-primary'
+                : 'border-border bg-surface text-muted-fg hover:text-fg',
+            )}
+          >
+            ✏️ {showEditPanel ? 'Ocultar editor' : 'Editar partido'}
+          </button>
+        </div>
+        {showEditPanel && (
+          <>
+            <p className="text-[11px] text-muted-fg">
+              Tocá un evento para editarlo. Los cambios se guardan automáticamente y el resultado se recalcula.
+            </p>
+            <EventTimeline
+              events={match.events}
+              homeColor={match.homeColor}
+              awayColor={match.awayColor}
+              onDelete={(eventId) => removeCompletedEvent(match.id, eventId)}
+              onEdit={(ev) => setEditingEvent(ev)}
+            />
+          </>
+        )}
+      </section>
+
+      <EventEditDialog
+        open={!!editingEvent}
+        onClose={() => setEditingEvent(null)}
+        event={editingEvent}
+        homeName={match.home}
+        awayName={match.away}
+        onSave={(patch) => {
+          if (!editingEvent) return;
+          updateCompletedEvent(match.id, editingEvent.id, patch);
+        }}
+        onDelete={() => {
+          if (!editingEvent) return;
+          removeCompletedEvent(match.id, editingEvent.id);
+        }}
+      />
     </div>
   );
 };

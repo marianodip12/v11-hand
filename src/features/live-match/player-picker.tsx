@@ -3,7 +3,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input, Label } from '@/components/ui/input';
-import type { PersonRef, Player } from '@/domain/types';
+import type { CourtZoneId, PersonRef, Player } from '@/domain/types';
+import { recommendedPlayersForZone } from '@/domain/recommendations';
 import { cn } from '@/lib/cn';
 
 export type PickerKind = 'shooter' | 'goalkeeper' | 'sanctioned';
@@ -23,6 +24,12 @@ export interface PlayerPickerProps {
   teamName: string;
   kind: PickerKind;
   allowSkip?: boolean;
+  /**
+   * If set (and kind === 'shooter'), the picker will surface players whose
+   * position matches the throwing zone first ("Recomendados"). The rest
+   * keeps the standard grouped-by-position layout.
+   */
+  priorityZone?: CourtZoneId | null;
 }
 
 export const PlayerPicker = ({
@@ -35,6 +42,7 @@ export const PlayerPicker = ({
   teamName,
   kind,
   allowSkip = true,
+  priorityZone = null,
 }: PlayerPickerProps) => {
   const t = useT();
   const [freeNumber, setFreeNumber] = useState('');
@@ -46,18 +54,31 @@ export const PlayerPicker = ({
     setFreeName('');
   }, [open]);
 
-  const grouped = useMemo(() => {
+  // For shooters with a known throw zone, split into recommended + rest.
+  // For other kinds (gk/sanctioned), skip recommendations.
+  const { recommended, restGrouped } = useMemo(() => {
+    const useRec = kind === 'shooter' && priorityZone !== null;
+    if (!useRec) {
+      const byPos: Record<string, Player[]> = {};
+      for (const p of players) {
+        const key = p.position || 'Otros';
+        if (!byPos[key]) byPos[key] = [];
+        byPos[key].push(p);
+      }
+      Object.values(byPos).forEach((ps) => ps.sort((a, b) => a.number - b.number));
+      return { recommended: [] as Player[], restGrouped: byPos };
+    }
+
+    const split = recommendedPlayersForZone(players, priorityZone);
     const byPos: Record<string, Player[]> = {};
-    for (const p of players) {
+    for (const p of split.rest) {
       const key = p.position || 'Otros';
       if (!byPos[key]) byPos[key] = [];
       byPos[key].push(p);
     }
-    Object.values(byPos).forEach((ps) =>
-      ps.sort((a, b) => a.number - b.number),
-    );
-    return byPos;
-  }, [players]);
+    Object.values(byPos).forEach((ps) => ps.sort((a, b) => a.number - b.number));
+    return { recommended: split.recommended, restGrouped: byPos };
+  }, [players, kind, priorityZone]);
 
   const adhocDeduped = useMemo(() => {
     const byNumber = new Map<number, PersonRef>();
@@ -86,7 +107,32 @@ export const PlayerPicker = ({
     <Dialog open={open} onClose={onClose} title={title} description={description}>
       {hasRoster ? (
         <div className="flex flex-col gap-2">
-          {Object.entries(grouped).map(([position, ps]) => (
+          {recommended.length > 0 && (
+            <section>
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="text-[9px] font-semibold uppercase tracking-wider text-primary">
+                  ⭐ Recomendados
+                </span>
+                <span className="text-[8px] text-muted-fg">
+                  {recommended[0]?.position}
+                  {recommended.length > 1 && recommended.some((p) => p.position !== recommended[0].position) && ' / armadores'}
+                </span>
+              </div>
+              <div className="grid grid-cols-5 gap-1.5">
+                {recommended.map((p) => (
+                  <JerseyButton
+                    key={p.id}
+                    number={p.number}
+                    name={p.name}
+                    color={teamColor}
+                    onClick={() => onPick({ name: p.name, number: p.number })}
+                    highlighted
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+          {Object.entries(restGrouped).map(([position, ps]) => (
             <section key={position}>
               <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-fg mb-1">
                 {position}
@@ -177,17 +223,22 @@ const JerseyButton = ({
   name,
   color,
   onClick,
+  highlighted = false,
 }: {
   number: number;
   name: string;
   color: string;
   onClick: () => void;
+  highlighted?: boolean;
 }) => (
   <button
     type="button"
     onClick={onClick}
     className={cn(
-      'flex flex-col items-center gap-0.5 p-1 rounded-md border border-border bg-surface-2',
+      'flex flex-col items-center gap-0.5 p-1 rounded-md border bg-surface-2',
+      highlighted
+        ? 'border-primary/60 ring-1 ring-primary/30 bg-primary/5'
+        : 'border-border',
       'hover:border-primary/60 hover:bg-primary/10 active:scale-[0.97]',
       'transition-colors duration-fast',
     )}

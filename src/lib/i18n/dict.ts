@@ -245,7 +245,7 @@ const es: Dict = {
   live_step2: '🏐 ¿Desde dónde tiró?',
   live_goal_zone_hint: 'Tocá el arco para registrar',
   live_court_hint: 'Tocá la zona de lanzamiento',
-  live_fuera: 'Fuera',
+  live_fuera: 'Lanzamiento con falta',
   live_palo: 'Palo',
   live_arco_a_arco: '🎯 Arco a Arco',
   live_other_events: 'Otros eventos',

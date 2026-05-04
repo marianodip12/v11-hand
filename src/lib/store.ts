@@ -35,6 +35,10 @@ const EMPTY_LIVE: LiveMatchInfo = {
 };
 
 interface MatchStoreState {
+  // ─── Settings (UX preferences)
+  autoSwitchAttacker: boolean;
+  setAutoSwitchAttacker: (v: boolean) => void;
+
   // ─── Teams
   teams: HandballTeam[];
   selectedTeamId: string | null;
@@ -57,6 +61,7 @@ interface MatchStoreState {
   finishLive: () => void;                         // move live → completed
   setLiveEvents: (events: HandballEvent[]) => void;
   addLiveEvent: (event: Omit<HandballEvent, 'id' | 'hScore' | 'aScore'>) => void;
+  updateLiveEvent: (id: string, patch: Partial<Omit<HandballEvent, 'id' | 'hScore' | 'aScore'>>) => void;
   removeLiveEvent: (id: string) => void;
   setLiveClock: (clock: ClockState) => void;
 
@@ -65,11 +70,30 @@ interface MatchStoreState {
   setCompleted: (matches: MatchSummary[]) => void;
   addCompleted: (m: MatchSummary) => void;
   removeCompleted: (id: string) => void;
+  updateCompletedMatch: (id: string, patch: Partial<Omit<MatchSummary, 'id'>>) => void;
+  updateCompletedEvent: (matchId: string, eventId: string, patch: Partial<Omit<HandballEvent, 'id' | 'hScore' | 'aScore'>>) => void;
+  removeCompletedEvent: (matchId: string, eventId: string) => void;
 }
+
+// Recompute running hScore/aScore snapshots after any event mutation.
+// Events should be in chronological order (we keep the order they were added).
+const rescoreEvents = (events: HandballEvent[]): HandballEvent[] => {
+  let h = 0, a = 0;
+  return events.map((e) => {
+    if (e.type === 'goal') {
+      if (e.team === 'home') h++; else a++;
+    }
+    return { ...e, hScore: h, aScore: a };
+  });
+};
 
 export const useMatchStore = create<MatchStoreState>()(
   persist(
     (set, get) => ({
+      // ─── Settings ─────────────────────────────────────────────────
+      autoSwitchAttacker: true,
+      setAutoSwitchAttacker: (v) => set({ autoSwitchAttacker: v }),
+
       // ─── Teams ────────────────────────────────────────────────────
       teams: [],
       selectedTeamId: null,
@@ -175,7 +199,7 @@ export const useMatchStore = create<MatchStoreState>()(
         });
       },
 
-      setLiveEvents: (events) => set({ liveEvents: events }),
+      setLiveEvents: (events) => set({ liveEvents: rescoreEvents(events) }),
       addLiveEvent: (incoming) =>
         set((s) => {
           const nextEvents = [
@@ -183,33 +207,25 @@ export const useMatchStore = create<MatchStoreState>()(
             {
               ...incoming,
               id: newId(),
-              // hScore/aScore are snapshotted at persistence time
               hScore: 0,
               aScore: 0,
             } as HandballEvent,
           ];
-          // Recompute running score at each event so the snapshot is correct
-          // even if events get added out of order (rare but possible).
-          let h = 0, a = 0;
-          const withScores = nextEvents.map((e) => {
-            if (e.type === 'goal') {
-              if (e.team === 'home') h++; else a++;
-            }
-            return { ...e, hScore: h, aScore: a };
-          });
-          return { liveEvents: withScores };
+          return { liveEvents: rescoreEvents(nextEvents) };
+        }),
+      updateLiveEvent: (id, patch) =>
+        set((s) => {
+          const next = s.liveEvents.map((e) =>
+            e.id === id ? ({ ...e, ...patch } as HandballEvent) : e,
+          );
+          // Re-sort by minute (ties keep original order via stable sort)
+          next.sort((a, b) => a.min - b.min);
+          return { liveEvents: rescoreEvents(next) };
         }),
       removeLiveEvent: (id) =>
         set((s) => {
           const filtered = s.liveEvents.filter((e) => e.id !== id);
-          let h = 0, a = 0;
-          const rescored = filtered.map((e) => {
-            if (e.type === 'goal') {
-              if (e.team === 'home') h++; else a++;
-            }
-            return { ...e, hScore: h, aScore: a };
-          });
-          return { liveEvents: rescored };
+          return { liveEvents: rescoreEvents(filtered) };
         }),
       setLiveClock: (clock) => set({ liveClock: clock }),
 
@@ -219,6 +235,40 @@ export const useMatchStore = create<MatchStoreState>()(
       addCompleted: (m) => set((s) => ({ completed: [m, ...s.completed] })),
       removeCompleted: (id) =>
         set((s) => ({ completed: s.completed.filter((m) => m.id !== id) })),
+      updateCompletedMatch: (id, patch) =>
+        set((s) => ({
+          completed: s.completed.map((m) =>
+            m.id === id ? { ...m, ...patch } : m,
+          ),
+        })),
+      updateCompletedEvent: (matchId, eventId, patch) =>
+        set((s) => ({
+          completed: s.completed.map((m) => {
+            if (m.id !== matchId) return m;
+            const next = m.events.map((e) =>
+              e.id === eventId ? ({ ...e, ...patch } as HandballEvent) : e,
+            );
+            next.sort((a, b) => a.min - b.min);
+            const rescored = rescoreEvents(next);
+            // Recalcular scores totales del partido a partir de los goles
+            const goals = rescored.filter((e) => e.type === 'goal');
+            const hs = goals.filter((e) => e.team === 'home').length;
+            const as = goals.filter((e) => e.team === 'away').length;
+            return { ...m, events: rescored, hs, as };
+          }),
+        })),
+      removeCompletedEvent: (matchId, eventId) =>
+        set((s) => ({
+          completed: s.completed.map((m) => {
+            if (m.id !== matchId) return m;
+            const filtered = m.events.filter((e) => e.id !== eventId);
+            const rescored = rescoreEvents(filtered);
+            const goals = rescored.filter((e) => e.type === 'goal');
+            const hs = goals.filter((e) => e.team === 'home').length;
+            const as = goals.filter((e) => e.team === 'away').length;
+            return { ...m, events: rescored, hs, as };
+          }),
+        })),
     }),
     {
       name: 'handball-pro-v11',
@@ -227,6 +277,7 @@ export const useMatchStore = create<MatchStoreState>()(
       // Persist everything that should survive a reload, including live state.
       // (If you want the clock to reset on reload, drop liveClock here.)
       partialize: (s) => ({
+        autoSwitchAttacker: s.autoSwitchAttacker,
         teams: s.teams,
         selectedTeamId: s.selectedTeamId,
         completed: s.completed,

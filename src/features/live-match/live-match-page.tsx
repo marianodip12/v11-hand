@@ -27,6 +27,8 @@ import { PlayerPicker, type PickerKind } from './player-picker';
 import { LiveStats } from './live-stats';
 import { EventTimeline } from './event-timeline';
 import { ShotOutcomeDialog, type ShotOutcome } from './shot-outcome-dialog';
+import { EventEditDialog } from './event-edit-dialog';
+import { eventChangesPossession, otherTeam } from '@/domain/recommendations';
 /**
  * TODO: Para usar el responsive layout en live-match-page:
  *
@@ -115,16 +117,20 @@ export const LiveMatchPage = () => {
   const clock       = useMatchStore((s) => s.liveClock);
   const setClock    = useMatchStore((s) => s.setLiveClock);
   const addEvent    = useMatchStore((s) => s.addLiveEvent);
+  const updateEvent = useMatchStore((s) => s.updateLiveEvent);
   const removeEvent = useMatchStore((s) => s.removeLiveEvent);
   const finishLive  = useMatchStore((s) => s.finishLive);
   const closeLive   = useMatchStore((s) => s.closeLive);
   const teams       = useMatchStore((s) => s.teams);
+  const autoSwitch  = useMatchStore((s) => s.autoSwitchAttacker);
+  const setAutoSwitch = useMatchStore((s) => s.setAutoSwitchAttacker);
 
   const [mode, setMode] = useState<Mode>('full');
   const [attacker, setAttacker] = useState<Team>('home');
   const [draft, setDraft] = useState<EventDraft>(EMPTY_DRAFT);
   const [pendingShot, setPendingShot] = useState<PendingShot | null>(null);
   const [pendingTagged, setPendingTagged] = useState<PendingTagged | null>(null);
+  const [editingEvent, setEditingEvent] = useState<HandballEvent | null>(null);
 
   if (status !== 'live' || !match.home) {
     return (
@@ -148,6 +154,16 @@ export const LiveMatchPage = () => {
   const setAttackerAndReset = (t: Team) => {
     setAttacker(t);
     setDraft({ ...EMPTY_DRAFT, team: t });
+  };
+
+  /**
+   * After registering an event, optionally rotate attacker to the other team.
+   * Only fires for shot/turnover events when the user has the toggle enabled.
+   */
+  const maybeAutoSwitch = (type: EventType, attackingTeam: Team) => {
+    if (!autoSwitch) return;
+    if (!eventChangesPossession(type)) return;
+    setAttackerAndReset(otherTeam(attackingTeam));
   };
 
   /**
@@ -207,6 +223,7 @@ export const LiveMatchPage = () => {
       }));
       setPendingShot(null);
       setDraft({ ...EMPTY_DRAFT, team: attacker });
+      maybeAutoSwitch(outcome, d.team);
       return;
     }
 
@@ -225,6 +242,7 @@ export const LiveMatchPage = () => {
     }));
     setPendingShot(null);
     setDraft({ ...EMPTY_DRAFT, team: attacker });
+    maybeAutoSwitch(outcome, d.team);
   };
 
   const handleNonShotCta = (type: EventType, team: Team) => {
@@ -236,6 +254,7 @@ export const LiveMatchPage = () => {
         clock,
         quickMode: mode === 'quick',
       }));
+      maybeAutoSwitch(type, team);
       return;
     }
     setPendingTagged({
@@ -260,6 +279,7 @@ export const LiveMatchPage = () => {
       sanctioned: kind === 'sanctioned' ? p : null,
     }));
     setPendingTagged(null);
+    maybeAutoSwitch(type, team);
   };
 
   // ─── Picker context: resolves roster & title for the current step ───
@@ -279,6 +299,7 @@ export const LiveMatchPage = () => {
         adhocPlayers: adhoc,
         teamColor: d.team === 'home' ? match.homeColor : match.awayColor,
         teamName: d.team === 'home' ? match.home : match.away,
+        priorityZone: d.courtZone, // ← recomendación por zona
         onPick: handleShotShooterPicked,
       };
     }
@@ -385,21 +406,37 @@ export const LiveMatchPage = () => {
         focus={attacker}
       />
 
-      {/* Mode only — attacker already above */}
-      <div className="rounded-lg border border-border bg-surface p-1 flex">
-        {(['full', 'quick'] as const).map((m) => (
-          <button
-            key={m}
-            type="button"
-            onClick={() => setMode(m)}
-            className={cn(
-              'flex-1 h-8 text-xs font-medium rounded-md transition-colors',
-              mode === m ? 'bg-primary/20 text-primary' : 'text-muted-fg hover:text-fg',
-            )}
-          >
-            {m === 'full' ? t.live_mode_full : t.live_mode_quick}
-          </button>
-        ))}
+      {/* Mode + auto-switch */}
+      <div className="flex gap-2">
+        <div className="rounded-lg border border-border bg-surface p-1 flex flex-1">
+          {(['full', 'quick'] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => setMode(m)}
+              className={cn(
+                'flex-1 h-8 text-xs font-medium rounded-md transition-colors',
+                mode === m ? 'bg-primary/20 text-primary' : 'text-muted-fg hover:text-fg',
+              )}
+            >
+              {m === 'full' ? t.live_mode_full : t.live_mode_quick}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => setAutoSwitch(!autoSwitch)}
+          className={cn(
+            'rounded-lg border px-3 h-10 text-[10px] font-medium transition-colors flex items-center gap-1.5',
+            autoSwitch
+              ? 'border-primary/40 bg-primary/10 text-primary'
+              : 'border-border bg-surface text-muted-fg',
+          )}
+          title="Cambia automáticamente al otro equipo después de un tiro o pérdida"
+        >
+          <span aria-hidden>⇄</span>
+          <span>Auto: {autoSwitch ? 'ON' : 'OFF'}</span>
+        </button>
       </div>
 
       {/* Step 1: arco — tapping a quadrant triggers the outcome popup */}
@@ -420,7 +457,7 @@ export const LiveMatchPage = () => {
             active={false}
             tone="neutral"
             onClick={() => {
-              // "Fuera" is a shortcut for a missed shot — commit directly
+              // "Fuera / Falta" is a shortcut for a missed shot — commit directly
               if (mode === 'quick') {
                 addEvent(buildEvent({
                   type: 'miss',
@@ -429,6 +466,7 @@ export const LiveMatchPage = () => {
                   quickMode: true,
                 }));
                 setDraft({ ...EMPTY_DRAFT, team: attacker });
+                maybeAutoSwitch('miss', attacker);
                 return;
               }
               const next: EventDraft = { ...draft, team: attacker, goalZone: 'out' };
@@ -449,6 +487,7 @@ export const LiveMatchPage = () => {
                   quickMode: true,
                 }));
                 setDraft({ ...EMPTY_DRAFT, team: attacker });
+                maybeAutoSwitch('post', attacker);
                 return;
               }
               const next: EventDraft = { ...draft, team: attacker, goalZone: 'post' };
@@ -564,6 +603,7 @@ export const LiveMatchPage = () => {
         homeColor={match.homeColor}
         awayColor={match.awayColor}
         onDelete={removeEvent}
+        onEdit={(ev) => setEditingEvent(ev)}
       />
 
       <section className="flex gap-2 pt-2">
@@ -587,6 +627,22 @@ export const LiveMatchPage = () => {
         onConfirm={handleShotOutcomePicked}
       />
 
+      <EventEditDialog
+        open={!!editingEvent}
+        onClose={() => setEditingEvent(null)}
+        event={editingEvent}
+        homeName={match.home}
+        awayName={match.away}
+        onSave={(patch) => {
+          if (!editingEvent) return;
+          updateEvent(editingEvent.id, patch);
+        }}
+        onDelete={() => {
+          if (!editingEvent) return;
+          removeEvent(editingEvent.id);
+        }}
+      />
+
       {pickerContext && (
         <PlayerPicker
           open={pickerContext.open}
@@ -601,6 +657,7 @@ export const LiveMatchPage = () => {
           teamColor={pickerContext.teamColor}
           teamName={pickerContext.teamName}
           kind={pickerContext.kind}
+          priorityZone={'priorityZone' in pickerContext ? pickerContext.priorityZone : null}
         />
       )}
     </div>

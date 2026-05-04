@@ -8,9 +8,11 @@ export interface EventTimelineProps {
   homeColor: string;
   awayColor: string;
   onDelete: (id: string) => void;
+  /** Optional — if provided, clicking an event opens the editor. */
+  onEdit?: (event: HandballEvent) => void;
 }
 
-export const EventTimeline = ({ events, homeColor, awayColor, onDelete }: EventTimelineProps) => {
+export const EventTimeline = ({ events, homeColor, awayColor, onDelete, onEdit }: EventTimelineProps) => {
   const t = useT();
   if (events.length === 0) {
     return (
@@ -28,11 +30,19 @@ export const EventTimeline = ({ events, homeColor, awayColor, onDelete }: EventT
         <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-fg">
           {t.live_timeline_title}
         </span>
-        <span className="text-[10px] text-muted-fg tabular">{events.length} total</span>
+        <span className="text-[10px] text-muted-fg tabular">
+          {events.length} total{onEdit ? ' · tocá un evento para editar' : ''}
+        </span>
       </div>
       <ul className="max-h-[240px] overflow-y-auto divide-y divide-border">
         {sorted.map((e) => (
-          <EventRow key={e.id} event={e} color={e.team === 'home' ? homeColor : awayColor} onDelete={() => onDelete(e.id)} />
+          <EventRow
+            key={e.id}
+            event={e}
+            color={e.team === 'home' ? homeColor : awayColor}
+            onDelete={() => onDelete(e.id)}
+            onEdit={onEdit ? () => onEdit(e) : undefined}
+          />
         ))}
       </ul>
     </div>
@@ -43,10 +53,12 @@ const EventRow = ({
   event,
   color,
   onDelete,
+  onEdit,
 }: {
   event: HandballEvent;
   color: string;
   onDelete: () => void;
+  onEdit?: () => void;
 }) => {
   const meta = EVENT_TYPES[event.type];
   const toneClass =
@@ -59,11 +71,10 @@ const EventRow = ({
     meta.tone === 'primary'   ? 'text-primary' :
                                 'text-fg';
 
-  const person =
-    event.shooter?.name ?? event.sanctioned?.name ?? null;
+  const person = event.shooter?.name ?? event.sanctioned?.name ?? null;
 
-  return (
-    <li className="flex items-center gap-2 px-3 py-2">
+  const RowContent = (
+    <>
       <span className="font-mono text-[11px] tabular text-muted-fg w-7">
         {event.min}'
       </span>
@@ -76,9 +87,29 @@ const EventRow = ({
           <span className="text-[11px] text-muted-fg truncate">· {person}</span>
         )}
       </div>
+    </>
+  );
+
+  return (
+    <li className="flex items-center gap-2 px-3 py-2 group">
+      {onEdit ? (
+        <button
+          type="button"
+          onClick={onEdit}
+          className="flex items-center gap-2 flex-1 min-w-0 text-left rounded -mx-1 px-1 py-0.5 hover:bg-surface-2"
+          aria-label="Editar evento"
+        >
+          {RowContent}
+        </button>
+      ) : (
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          {RowContent}
+        </div>
+      )}
       <button
         type="button"
-        onClick={() => {
+        onClick={(e) => {
+          e.stopPropagation();
           if (window.confirm('¿Borrar este evento?')) onDelete();
         }}
         className="text-muted-fg hover:text-danger transition-colors p-1 -m-1"
